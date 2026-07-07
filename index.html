@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BTIS Survey App v0.4</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+<header>
+  <div class="emblem">BTIS</div>
+  <div><h1>Botswana Tourism Improvement System</h1><p>Accommodation Improvement Survey v0.4</p></div>
+</header>
+
+<main>
+<section class="card" id="home">
+  <h2>BTIS Survey</h2>
+  <button onclick="go('account')">Create / Open Traveller Account</button>
+  <button class="secondary" onclick="go('accounts')">Open Existing Survey</button>
+  <button class="secondary" onclick="go('settings')">System Settings</button>
+  <button class="secondary" onclick="go('dashboard')">Dashboard</button>
+</section>
+
+<section class="card hidden" id="account">
+  <h2>Traveller Account</h2>
+  <div class="grid">
+    <label>Name / Nickname<input id="travellerName" oninput="suggestTravellerId()"></label>
+    <label>Nationality<input id="nationality" oninput="suggestTravellerId()"></label>
+    <label>Guide<select id="guideSelect" onchange="handleGuideSelect()"></select></label>
+    <label>Traveller ID<input id="travellerId" readonly placeholder="Auto-generated"></label>
+  </div>
+  <div id="newGuideBox" class="subcard hidden">
+    <h3>New Guide Registration</h3>
+    <div class="grid">
+      <label>Guide Name<input id="newGuideName"></label>
+      <label>Passport / National ID<input id="newGuideId"></label>
+    </div>
+    <button onclick="registerGuideFromAccount()">Register Guide</button>
+  </div>
+  <p class="quiet">If the same traveller name already exists, the existing account will be opened.</p>
+  <button onclick="createOrOpenAccount()">Create / Open</button>
+  <button class="secondary" onclick="go('home')">Back</button>
+</section>
+
+<section class="card hidden" id="settings">
+  <h2>System Settings</h2>
+  <h3>Registered Guides</h3>
+  <div id="guideList"></div>
+  <div class="subcard">
+    <h3>Add New Guide</h3>
+    <div class="grid">
+      <label>Guide Name<input id="settingsGuideName"></label>
+      <label>Passport / National ID<input id="settingsGuideId"></label>
+    </div>
+    <button onclick="registerGuideFromSettings()">Register</button>
+  </div>
+  <button class="secondary" onclick="go('home')">Back</button>
+</section>
+
+<section class="card hidden" id="accounts">
+  <h2>Existing Surveys</h2>
+  <div id="accountList"></div>
+  <button class="secondary" onclick="go('home')">Back</button>
+</section>
+
+<section class="card hidden" id="profile">
+  <h2>Guest Profile</h2>
+  <div class="modebar">
+    <label>Input Mode
+      <select id="inputMode" onchange="updateMode()">
+        <option value="guest">Guest</option>
+        <option value="guide">Guide / BTIS</option>
+      </select>
+    </label>
+  </div>
+  <p class="quiet" id="activeAccount"></p>
+  <div class="grid">
+    <label>Accommodation<input id="accommodation"></label>
+    <label>Location<input id="location"></label>
+    <label>Travel Type<select id="travelType"><option>Solo</option><option>Couple</option><option>Family</option><option>Friends</option><option>Group</option></select></label>
+    <label>Purpose<select id="purpose"><option>Holiday</option><option>Business</option><option>Culture</option><option>Other</option></select></label>
+    <label>Nights<input id="nights" type="number" min="1" value="1"></label>
+    <label>Guests<input id="guests" type="number" min="1" value="1"></label>
+  </div>
+  <button onclick="startRatings()">Start / Review Ratings</button>
+  <button class="secondary" onclick="go('account')">Back to Account</button>
+  <button class="print" onclick="printCurrent()">Print Draft</button>
+</section>
+
+<section class="card hidden" id="ratings">
+  <div class="topbar">
+    <button class="secondary" onclick="saveAndGo('profile')">Guest Profile</button>
+    <button class="secondary" id="reviewJumpBtn" onclick="saveAndGo('review')">Review All</button>
+    <button class="print" onclick="printCurrent()">Print Draft</button>
+  </div>
+  <p class="progressText" id="progressText"></p>
+  <h2 id="ratingTitle"></h2>
+  <p id="ratingHint"></p>
+  <div class="rating" id="ratingButtons"></div>
+  <label>Optional comment for this item<textarea id="itemComment" rows="3" placeholder="Leave blank if there is nothing to add."></textarea></label>
+  <button class="secondary" onclick="prevRating()">Back</button>
+  <button onclick="nextRating()">Save & Next</button>
+</section>
+
+<section class="card hidden" id="review">
+  <h2>Review All Entries</h2>
+  <div id="reviewList"></div>
+  <button class="secondary" onclick="startRatings()">Edit Ratings</button>
+  <button onclick="go('comments')">Continue</button>
+  <button class="print" onclick="printCurrent()">Print Draft</button>
+</section>
+
+<section class="card hidden" id="comments">
+  <h2>Guest Comments</h2>
+  <label>Anything that could be improved?<textarea id="improve" rows="5"></textarea></label>
+  <label>What should we continue doing well?<textarea id="continueWell" rows="4"></textarea></label>
+  <button class="secondary" onclick="go('review')">Back</button>
+  <button id="commentsNextBtn" onclick="nextAfterComments()">Next</button>
+  <button class="print" onclick="printCurrent()">Print Draft</button>
+</section>
+
+<section class="card hidden" id="guide">
+  <h2>For BTIS Use Only</h2>
+  <label>Guide's Note<textarea id="guideNote" rows="4"></textarea></label>
+  <label>Accommodation Response<textarea id="response" rows="4"></textarea></label>
+  <button class="secondary" onclick="go('comments')">Back</button>
+  <button onclick="go('contact')">Next</button>
+  <button class="print" onclick="printCurrent()">Print Draft</button>
+</section>
+
+<section class="card hidden" id="contact">
+  <p class="quiet">Optional Follow-up Contact — this section will not be shared with the accommodation.</p>
+  <label>Email / WhatsApp<input id="contactInfo"></label>
+  <label class="quiet"><input type="checkbox" id="mayContact"> May BTIS contact this guest?</label>
+  <button class="secondary" onclick="go('guide')">Back</button>
+  <button onclick="finishSurvey()">Finish & Log Out</button>
+  <button class="print" onclick="printCurrent()">Print Final</button>
+</section>
+
+<section class="card hidden" id="dashboard">
+  <h2>BTIS Dashboard</h2>
+  <div class="stats">
+    <div><b id="surveyCount">0</b><span>Surveys</span></div>
+    <div><b id="avgScore">-</b><span>Average</span></div>
+    <div><b id="priority">-</b><span>Priority</span></div>
+  </div>
+  <p id="aiText">No surveys yet.</p>
+  <button onclick="go('home')">Home</button>
+</section>
+</main>
+
+<section id="printArea"></section>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
