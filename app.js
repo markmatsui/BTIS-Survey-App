@@ -1,241 +1,33 @@
-const ratingItems = [
-  'Reservation', 'Check-in', 'Cleanliness', 'Room', 'Bathroom', 'Hot Water',
-  'Electricity', 'Food', 'Hospitality', 'Safety', 'Value', 'Overall'
-];
-const lodgeCodes = {
-  'RASESA': { accommodation: 'Rasesa Lodge', location: 'Rasesa', guide: 'George' },
-  'BTIS-RASESA': { accommodation: 'Rasesa Lodge', location: 'Rasesa', guide: 'George' }
-};
-const storageKey = 'btis_surveys_v0_5';
-let currentStep = 0;
-let photoData = '';
-let recognition = null;
-
-const form = document.getElementById('surveyForm');
-const steps = [...document.querySelectorAll('.step')];
-const stepper = document.getElementById('stepper');
-const ratings = document.getElementById('ratings');
-
-function init() {
-  document.getElementById('surveyDate').valueAsDate = new Date();
-  document.getElementById('btisNo').value = makeBtisNo();
-  steps.forEach((_, i) => {
-    const dot = document.createElement('div');
-    dot.className = 'dot';
-    stepper.appendChild(dot);
-  });
-  renderRatings();
-  bindEvents();
-  updateStep();
-}
-
-function makeBtisNo() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  const rand = Math.floor(1000 + Math.random() * 9000);
-  return `BTIS-${y}${m}${day}-${rand}`;
-}
-
-function renderRatings() {
-  ratings.innerHTML = ratingItems.map(item => `
-    <div class="rating-card">
-      <strong>${item}</strong>
-      <div class="score-row">
-        ${[1,2,3,4,5].map(n => `
-          <label><input type="radio" name="rating_${item}" value="${n}"><span>${n}</span></label>
-        `).join('')}
-      </div>
-    </div>`).join('');
-}
-
-function bindEvents() {
-  document.getElementById('nextBtn').addEventListener('click', () => { if (currentStep < steps.length - 1) currentStep++; updateStep(); });
-  document.getElementById('prevBtn').addEventListener('click', () => { if (currentStep > 0) currentStep--; updateStep(); });
-  document.getElementById('applyQr').addEventListener('click', applyQr);
-  document.getElementById('photoInput').addEventListener('change', handlePhoto);
-  document.getElementById('dashboardBtn').addEventListener('click', showDashboard);
-  document.getElementById('newSurveyBtn').addEventListener('click', showSurvey);
-  document.getElementById('clearData').addEventListener('click', clearData);
-  document.getElementById('exportJson').addEventListener('click', exportJson);
-  document.getElementById('startVoice').addEventListener('click', startVoiceInput);
-  document.getElementById('stopVoice').addEventListener('click', stopVoiceInput);
-  form.addEventListener('submit', saveSurvey);
-  form.addEventListener('input', () => { if (currentStep === steps.length - 1) renderSummary(); });
-}
-
-function updateStep() {
-  steps.forEach((s, i) => s.classList.toggle('active', i === currentStep));
-  [...stepper.children].forEach((d, i) => d.classList.toggle('active', i <= currentStep));
-  document.getElementById('prevBtn').style.visibility = currentStep === 0 ? 'hidden' : 'visible';
-  document.getElementById('nextBtn').style.display = currentStep === steps.length - 1 ? 'none' : 'inline-block';
-  if (currentStep === steps.length - 1) renderSummary();
-}
-
-function applyQr() {
-  const raw = document.getElementById('qrText').value.trim();
-  if (!raw) return;
-  let data = lodgeCodes[raw.toUpperCase()];
-  if (!data) {
-    try { data = JSON.parse(raw); } catch { data = null; }
-  }
-  if (!data) { alert('QR / Lodge Code not recognised. You can still enter manually.'); return; }
-  ['accommodation', 'location', 'guide'].forEach(k => { if (data[k]) document.getElementById(k).value = data[k]; });
-}
-
-function handlePhoto(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    photoData = reader.result;
-    const img = document.getElementById('photoPreview');
-    img.src = photoData;
-    img.classList.remove('hidden');
-  };
-  reader.readAsDataURL(file);
-}
-
-function collectData() {
-  const fd = new FormData(form);
-  const data = Object.fromEntries(fd.entries());
-  data.mayContact = fd.get('mayContact') === 'on';
-  data.photo = photoData;
-  data.createdAt = new Date().toISOString();
-  data.ratings = {};
-  ratingItems.forEach(item => data.ratings[item] = Number(fd.get(`rating_${item}`) || 0));
-  return data;
-}
-
-function renderSummary() {
-  const data = collectData();
-  const avg = averageScore(data.ratings);
-  document.getElementById('summaryBox').innerHTML = `
-    <p><strong>${data.btisNo || '(No BTIS No.)'}</strong></p>
-    <p>${data.accommodation || '(Accommodation not entered)'} — ${data.location || ''}</p>
-    <p>Average score: <strong>${avg || '-'}</strong></p>
-    <p>Guest: ${data.nationality || '-'} / ${data.travelType || '-'}</p>
-  `;
-}
-
-function saveSurvey(e) {
-  e.preventDefault();
-  const surveys = loadSurveys();
-  surveys.unshift(collectData());
-  localStorage.setItem(storageKey, JSON.stringify(surveys));
-  alert('Survey saved locally.');
-  form.reset();
-  photoData = '';
-  document.getElementById('photoPreview').classList.add('hidden');
-  document.getElementById('surveyDate').valueAsDate = new Date();
-  document.getElementById('btisNo').value = makeBtisNo();
-  currentStep = 0;
-  updateStep();
-}
-
-function loadSurveys() {
-  try { return JSON.parse(localStorage.getItem(storageKey)) || []; } catch { return []; }
-}
-
-function averageScore(ratingsObj) {
-  const vals = Object.values(ratingsObj || {}).filter(v => v > 0);
-  if (!vals.length) return 0;
-  return (vals.reduce((a,b) => a+b, 0) / vals.length).toFixed(1);
-}
-
-function showDashboard() {
-  document.getElementById('surveyView').classList.add('hidden');
-  document.getElementById('dashboardView').classList.remove('hidden');
-  renderDashboard();
-}
-function showSurvey() {
-  document.getElementById('dashboardView').classList.add('hidden');
-  document.getElementById('surveyView').classList.remove('hidden');
-}
-
-function renderDashboard() {
-  const surveys = loadSurveys();
-  const allScores = surveys.flatMap(s => Object.values(s.ratings || {}).filter(v => v > 0));
-  const avg = allScores.length ? (allScores.reduce((a,b) => a+b, 0) / allScores.length).toFixed(1) : '-';
-  document.getElementById('stats').innerHTML = `
-    <div class="stat"><strong>${surveys.length}</strong>Surveys</div>
-    <div class="stat"><strong>${avg}</strong>Average</div>
-    <div class="stat"><strong>${new Set(surveys.map(s => s.accommodation).filter(Boolean)).size}</strong>Accommodations</div>
-  `;
-  renderPriorities(surveys);
-  document.getElementById('surveyList').innerHTML = surveys.map(s => `
-    <div class="survey-item">
-      <strong>${s.btisNo}</strong><br>
-      ${s.accommodation || '-'} / ${s.location || '-'}<br>
-      Average: ${averageScore(s.ratings)}<br>
-      <small>${new Date(s.createdAt).toLocaleString()}</small>
-    </div>
-  `).join('') || '<p class="hint">No surveys saved yet.</p>';
-}
-
-function renderPriorities(surveys) {
-  const sums = {};
-  const counts = {};
-  ratingItems.forEach(i => { sums[i] = 0; counts[i] = 0; });
-  surveys.forEach(s => ratingItems.forEach(i => {
-    const v = Number(s.ratings?.[i] || 0);
-    if (v > 0) { sums[i] += v; counts[i]++; }
-  }));
-  const rows = ratingItems.map(i => ({ item: i, avg: counts[i] ? sums[i] / counts[i] : 0, count: counts[i] }))
-    .filter(r => r.count)
-    .sort((a,b) => a.avg - b.avg)
-    .slice(0, 5);
-  document.getElementById('priorityList').innerHTML = rows.map(r => `
-    <div class="priority-item"><strong>${r.item}</strong>: ${r.avg.toFixed(1)} average — improvement priority</div>
-  `).join('') || '<p class="hint">No rating data yet.</p>';
-}
-
-function clearData() {
-  if (!confirm('Clear all local BTIS survey data?')) return;
-  localStorage.removeItem(storageKey);
-  renderDashboard();
-}
-
-function exportJson() {
-  const blob = new Blob([JSON.stringify(loadSurveys(), null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'btis-surveys-v0-5.json';
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function startVoiceInput() {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const status = document.getElementById('voiceStatus');
-  if (!SpeechRecognition) {
-    status.textContent = 'Voice input is not supported in this browser. Please type the summary.';
-    return;
-  }
-  recognition = new SpeechRecognition();
-  recognition.lang = 'en-US';
-  recognition.continuous = true;
-  recognition.interimResults = true;
-  recognition.onresult = e => {
-    let text = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) text += e.results[i][0].transcript;
-    document.getElementById('voiceNote').value = text.trim();
-  };
-  recognition.onend = () => {
-    document.getElementById('startVoice').disabled = false;
-    document.getElementById('stopVoice').disabled = true;
-    status.textContent = 'Voice input stopped.';
-  };
-  recognition.start();
-  document.getElementById('startVoice').disabled = true;
-  document.getElementById('stopVoice').disabled = false;
-  status.textContent = 'Listening...';
-}
-
-function stopVoiceInput() {
-  if (recognition) recognition.stop();
-}
-
-init();
+const STORAGE_KEY = "btis_surveys_v06";
+const ratingItems = ["Cleanliness","Toilet / Bathroom","Safety / Security","Staff Friendliness","Check-in / Booking","Room Comfort","Food / Breakfast","Local Culture Experience","Accessibility","Electricity / Charging","Value for Money","Overall Satisfaction"];
+let currentStep = 0;let photoData = "";let recognition = null;let adminMode = false;
+const $ = id => document.getElementById(id);
+const today = new Date().toISOString().slice(0,10);
+function load(){return JSON.parse(localStorage.getItem(STORAGE_KEY)||"[]")}
+function save(data){localStorage.setItem(STORAGE_KEY,JSON.stringify(data))}
+function avg(arr){const nums=arr.map(Number).filter(n=>n>0);return nums.length?nums.reduce((a,b)=>a+b,0)/nums.length:0}
+function init(){ $('surveyDate').value=today; $('btisNo').placeholder=`BTIS-${today.replaceAll('-','')}-001`; buildStepper(); buildRatings(); showStep(0); bind(); renderDashboard();}
+function buildStepper(){ $('stepper').innerHTML = Array.from({length:8},(_,i)=>`<div class="dot ${i===0?'active':''}"></div>`).join('')}
+function buildRatings(){ $('ratings').innerHTML = ratingItems.map((item,i)=>`<div class="rating-card"><strong>${i+1}. ${item}</strong><div class="rating-options">${[1,2,3,4,5].map(n=>`<label><input type="radio" name="rating_${i}" value="${n}"> ${n}</label>`).join('')}</div></div>`).join('')}
+function showStep(n){currentStep=Math.max(0,Math.min(7,n));document.querySelectorAll('.step').forEach((s,i)=>s.classList.toggle('active',i===currentStep));document.querySelectorAll('.dot').forEach((d,i)=>d.classList.toggle('active',i<=currentStep));$('prevBtn').disabled=currentStep===0;$('nextBtn').classList.toggle('hidden',currentStep===7);if(currentStep===7) buildSummary()}
+function bind(){ $('nextBtn').onclick=()=>showStep(currentStep+1);$('prevBtn').onclick=()=>showStep(currentStep-1);$('surveyBtn').onclick=()=>toggleView('survey');$('dashboardBtn').onclick=()=>{toggleView('dash');renderDashboard()};$('applyQr').onclick=applyQr;$('surveyForm').onsubmit=submitSurvey;$('photoInput').onchange=readPhoto;$('startVoice').onclick=startVoice;$('stopVoice').onclick=stopVoice;['filterAccommodation','filterGuide','filterFrom','filterTo','filterMaxAvg'].forEach(id=>$(id).oninput=renderDashboard);$('clearFilters').onclick=clearFilters;$('exportCsv').onclick=exportCsv;$('exportJson').onclick=exportJson;$('loadSample').onclick=loadSample;$('deleteAll').onclick=deleteAll;$('adminToggle').onclick=toggleAdmin}
+function toggleView(view){$('surveyView').classList.toggle('hidden',view!=='survey');$('dashboardView').classList.toggle('hidden',view!=='dash')}
+function applyQr(){const v=$('qrText').value.trim(); if(!v)return; try{const o=JSON.parse(v); if(o.accommodation)$('accommodation').value=o.accommodation; if(o.location)$('location').value=o.location; if(o.guide)$('guide').value=o.guide; return;}catch(e){} if(v.toUpperCase().includes('RASESA')){$('accommodation').value='Rasesa Lodge';$('location').value='Rasesa';}}
+function readPhoto(e){const file=e.target.files[0]; if(!file)return; const reader=new FileReader(); reader.onload=()=>{photoData=reader.result;$('photoPreview').src=photoData;$('photoPreview').classList.remove('hidden')}; reader.readAsDataURL(file)}
+function startVoice(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR){$('voiceStatus').textContent='Voice input is not supported by this browser.';return} recognition=new SR();recognition.lang='en-US';recognition.continuous=true;recognition.onresult=e=>{let t='';for(let i=e.resultIndex;i<e.results.length;i++)t+=e.results[i][0].transcript+' ';$('voiceNote').value += t};recognition.start();$('startVoice').disabled=true;$('stopVoice').disabled=false;$('voiceStatus').textContent='Listening...'}
+function stopVoice(){if(recognition)recognition.stop();$('startVoice').disabled=false;$('stopVoice').disabled=true;$('voiceStatus').textContent='Stopped.'}
+function getFormData(){const fd=new FormData($('surveyForm')); const ratings=ratingItems.map((_,i)=>Number(fd.get(`rating_${i}`)||0)); return {id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),createdAt:new Date().toISOString(),btisNo:fd.get('btisNo')||`BTIS-${Date.now()}`,accommodation:fd.get('accommodation'),location:fd.get('location'),guide:fd.get('guide'),surveyDate:fd.get('surveyDate')||today,nationality:fd.get('nationality'),ageGroup:fd.get('ageGroup'),travelType:fd.get('travelType'),purpose:fd.get('purpose'),checkIn:fd.get('checkIn'),checkOut:fd.get('checkOut'),nights:fd.get('nights'),guests:fd.get('guests'),ratings,improve:fd.get('improve'),continueWell:fd.get('continueWell'),voiceNote:fd.get('voiceNote'),photo:photoData,photoNote:fd.get('photoNote'),guideNote:fd.get('guideNote'),accommodationResponse:fd.get('accommodationResponse'),contactName:fd.get('contactName'),contact:fd.get('contact'),mayContact:fd.get('mayContact')==='on'} }
+function buildSummary(){const d=getFormData(); $('summaryBox').innerHTML=`<strong>${d.accommodation||'No accommodation'}</strong><br>Date: ${d.surveyDate}<br>Guide: ${d.guide||'-'}<br>Average score: ${avg(d.ratings).toFixed(1)}`}
+function submitSurvey(e){e.preventDefault(); const d=getFormData(); if(!d.accommodation){alert('Accommodation is required.');showStep(0);return} const all=load(); all.push(d); save(all); alert('Survey saved.'); $('surveyForm').reset(); photoData='';$('photoPreview').classList.add('hidden');$('surveyDate').value=today; showStep(0); toggleView('dash'); renderDashboard()}
+function filtered(){let data=load(); const a=$('filterAccommodation').value.toLowerCase(),g=$('filterGuide').value.toLowerCase(),f=$('filterFrom').value,t=$('filterTo').value,m=Number($('filterMaxAvg').value||0); return data.filter(x=>(!a||(x.accommodation||'').toLowerCase().includes(a))&&(!g||(x.guide||'').toLowerCase().includes(g))&&(!f||x.surveyDate>=f)&&(!t||x.surveyDate<=t)&&(!m||avg(x.ratings)<=m)).sort((x,y)=>(y.surveyDate||'').localeCompare(x.surveyDate||''))}
+function renderDashboard(){const data=filtered(); $('statCount').textContent=data.length; $('statAverage').textContent=data.length?avg(data.flatMap(x=>x.ratings)).toFixed(1):'-'; $('statLatest').textContent=data[0]?.surveyDate||'-'; const itemAvgs=ratingItems.map((item,i)=>({item,score:avg(data.map(x=>x.ratings[i]))})); const low=itemAvgs.filter(x=>x.score&&x.score<3.5).sort((a,b)=>a.score-b.score); $('statLowItems').textContent=low.length; $('itemAverages').innerHTML=itemAvgs.map(x=>`<div class="bar-row"><span>${x.item}</span><div class="bar-track"><div class="bar-fill" style="width:${(x.score/5)*100}%"></div></div><strong>${x.score?x.score.toFixed(1):'-'}</strong></div>`).join('')||'<p class="hint">No data.</p>'; $('priorityItems').innerHTML=low.map(x=>`<div class="priority"><strong>${x.item}</strong> — average ${x.score.toFixed(1)}. Check comments and guide notes.</div>`).join('')||'<p class="hint">No priority item detected.</p>'; $('surveyTable').innerHTML=data.map(x=>{const lowest=x.ratings.map((v,i)=>({v,i})).filter(o=>o.v).sort((a,b)=>a.v-b.v)[0]; return `<tr><td>${x.surveyDate||''}</td><td>${x.btisNo||''}</td><td>${x.accommodation||''}</td><td>${x.guide||''}</td><td>${avg(x.ratings).toFixed(1)}</td><td>${lowest?ratingItems[lowest.i]+' ('+lowest.v+')':'-'}</td><td class="admin-only ${adminMode?'':'hidden'}"><button class="danger" onclick="deleteOne('${x.id}')">Delete</button></td></tr>`}).join('')||'<tr><td colspan="7">No survey data.</td></tr>'; document.querySelectorAll('.admin-only').forEach(el=>el.classList.toggle('hidden',!adminMode))}
+function clearFilters(){['filterAccommodation','filterGuide','filterFrom','filterTo','filterMaxAvg'].forEach(id=>$(id).value='');renderDashboard()}
+function csvEscape(v){return '"'+String(v??'').replaceAll('"','""')+'"'}
+function exportCsv(){const rows=filtered(); const header=['surveyDate','btisNo','accommodation','location','guide','nationality','ageGroup','travelType','purpose','average',...ratingItems,'improve','continueWell','guideNote']; const body=rows.map(x=>[x.surveyDate,x.btisNo,x.accommodation,x.location,x.guide,x.nationality,x.ageGroup,x.travelType,x.purpose,avg(x.ratings).toFixed(2),...x.ratings,x.improve,x.continueWell,x.guideNote].map(csvEscape).join(',')); download('btis_v0_6_export.csv',[header.join(','),...body].join('\n'),'text/csv')}
+function exportJson(){download('btis_v0_6_export.json',JSON.stringify(filtered(),null,2),'application/json')}
+function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();URL.revokeObjectURL(a.href)}
+function loadSample(){const sample=[{id:'sample1',createdAt:new Date().toISOString(),btisNo:'BTIS-SAMPLE-001',accommodation:'Rasesa Lodge',location:'Rasesa',guide:'George',surveyDate:today,nationality:'Japan',ageGroup:'60+',travelType:'Group',purpose:'Culture',ratings:[4,2,3,5,3,4,4,5,2,3,4,4],improve:'Bathroom and accessibility need improvement.',continueWell:'Warm staff and local culture.',guideNote:'Priority: toilet and step-free access.'},{id:'sample2',createdAt:new Date().toISOString(),btisNo:'BTIS-SAMPLE-002',accommodation:'Rasesa Lodge',location:'Rasesa',guide:'George',surveyDate:today,ratings:[5,4,4,5,4,4,3,5,3,4,4,5],improve:'Breakfast could include more local food.',continueWell:'Friendly people.',guideNote:'Food experience can connect with local products.'}]; save([...load(),...sample]);renderDashboard()}
+function toggleAdmin(){adminMode=!adminMode;$('adminToggle').textContent=adminMode?'Admin Mode ON':'Admin Mode';renderDashboard()}
+function deleteOne(id){if(!confirm('Delete this survey?'))return; save(load().filter(x=>x.id!==id));renderDashboard()}
+function deleteAll(){if(!confirm('Delete all survey data in this browser?'))return; save([]);renderDashboard()}
+window.deleteOne=deleteOne; init();

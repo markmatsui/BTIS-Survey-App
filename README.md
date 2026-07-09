@@ -1,26 +1,35 @@
-# BTIS Survey App — Version 0.5 Prototype
+# BTIS Survey App — Version 0.6 Prototype
 
-This is a simple browser-based prototype for the Botswana Tourism Improvement System (BTIS).
+This is a browser-based prototype for the Botswana Tourism Improvement System (BTIS).
 
-## What v0.5 includes
+## What v0.6 includes
 
-- New survey flow
+- Full survey input flow
 - QR / lodge code input
 - Guest profile
 - 12 improvement review ratings
-- Guest improvement comments
+- Guest comments
 - Voice input support where the browser allows it
 - Photo attachment preview
 - Guide's private note
 - Accommodation response field
 - Optional follow-up contact
-- Local save in the browser
-- Simple dashboard
+- Local browser storage
+- Survey list
+- Dashboard with total count and average score
+- Item-by-item average scores
+- Priority improvement item detection
+- Search and filters
+- CSV export
 - JSON export
+- Admin Mode with delete controls
+- Sample data loader
 
 ## Important limitation
 
-This version does not upload to a real server. Data is stored only in the browser's local storage.
+This version does not upload data to a real server. Data is stored only in the browser's local storage.
+
+If you open the app on another phone or computer, the data will not automatically appear there.
 
 ## Test lodge codes
 
@@ -44,4 +53,10 @@ Upload these four files to the repository root:
 
 ## Suggested commit message
 
-`Implement BTIS v0.5 prototype survey flow`
+`Implement BTIS Version 0.6 dashboard and export tools`
+
+## Notes for field testing
+
+Use this version to test whether the questions, ratings, comments, and dashboard are useful for real accommodation improvement work.
+
+Do not treat the scores as public hotel ratings. They are internal improvement signals.

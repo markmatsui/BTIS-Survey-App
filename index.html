@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>BTIS Survey v0.5</title>
+  <title>BTIS Survey v0.6</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -11,19 +11,21 @@
     <div>
       <div class="eyebrow">Botswana Tourism Improvement System</div>
       <h1>BTIS Survey</h1>
-      <p class="version">Version 0.5 Prototype</p>
+      <p class="version">Version 0.6 — Survey + Dashboard</p>
     </div>
-    <button id="dashboardBtn" class="secondary">Dashboard</button>
+    <div class="header-actions">
+      <button id="surveyBtn" class="secondary">New Survey</button>
+      <button id="dashboardBtn" class="primary">Dashboard</button>
+    </div>
   </header>
 
   <main>
     <section id="surveyView" class="card">
       <div class="stepper" id="stepper"></div>
-
       <form id="surveyForm">
         <section class="step active" data-step="0">
           <h2>New Survey</h2>
-          <p class="hint">Start a new accommodation improvement report.</p>
+          <p class="hint">Create one improvement report for one accommodation stay.</p>
           <label>BTIS No.<input name="btisNo" id="btisNo" placeholder="Auto or manual" /></label>
           <div class="two-col">
             <label>Accommodation<input name="accommodation" id="accommodation" required /></label>
@@ -33,9 +35,7 @@
             <label>Guide<input name="guide" id="guide" /></label>
             <label>Survey Date<input name="surveyDate" id="surveyDate" type="date" /></label>
           </div>
-          <label>QR / Lodge Code
-            <input id="qrText" placeholder="Paste QR text or lodge code here" />
-          </label>
+          <label>QR / Lodge Code<input id="qrText" placeholder="RASESA or BTIS-RASESA" /></label>
           <button type="button" id="applyQr" class="secondary full">Apply QR / Lodge Code</button>
         </section>
 
@@ -61,7 +61,7 @@
 
         <section class="step" data-step="2">
           <h2>Improvement Review</h2>
-          <p class="hint">1 = Poor / 5 = Excellent. This is not a rating system. It is an improvement system.</p>
+          <p class="hint">1 = Poor / 5 = Excellent. BTIS is an improvement system, not a blame system.</p>
           <div id="ratings" class="ratings-grid"></div>
         </section>
 
@@ -69,7 +69,7 @@
           <h2>Guest Comments</h2>
           <label>Anything that could be improved?<textarea name="improve" rows="4"></textarea></label>
           <label>What should we continue doing well?<textarea name="continueWell" rows="4"></textarea></label>
-          <label>Voice comment note / transcript<textarea name="voiceNote" id="voiceNote" rows="3" placeholder="Record audio on phone if available, or type summary here."></textarea></label>
+          <label>Voice comment note / transcript<textarea name="voiceNote" id="voiceNote" rows="3" placeholder="Type summary here, or use voice input if supported."></textarea></label>
           <div class="button-row">
             <button type="button" id="startVoice" class="secondary">Start Voice Input</button>
             <button type="button" id="stopVoice" class="secondary" disabled>Stop</button>
@@ -93,7 +93,7 @@
 
         <section class="step" data-step="6">
           <h2>Optional Follow-up Contact</h2>
-          <p class="hint">This section is optional and should not be shared with accommodation without permission.</p>
+          <p class="hint">Optional. Do not share this with accommodation without permission.</p>
           <div class="two-col">
             <label>Name / Nickname<input name="contactName" /></label>
             <label>Email / WhatsApp<input name="contact" /></label>
@@ -105,7 +105,6 @@
           <h2>Submit</h2>
           <div id="summaryBox" class="summary"></div>
           <button type="submit" class="primary full">Save Survey</button>
-          <button type="button" id="exportJson" class="secondary full">Export All Data as JSON</button>
         </section>
 
         <div class="nav-row">
@@ -119,20 +118,51 @@
       <div class="dash-head">
         <div>
           <h2>BTIS Dashboard</h2>
-          <p class="hint">Local prototype dashboard. Data is saved in this browser only.</p>
+          <p class="hint">Stored locally in this browser.</p>
         </div>
-        <button id="newSurveyBtn" class="primary">New Survey</button>
+        <button id="adminToggle" class="secondary">Admin Mode</button>
       </div>
-      <div id="stats" class="stats"></div>
-      <h3>Improvement Priorities</h3>
-      <div id="priorityList" class="priority-list"></div>
-      <h3>Saved Surveys</h3>
-      <div id="surveyList" class="survey-list"></div>
-      <button id="clearData" class="danger">Clear Local Data</button>
+
+      <div class="filters">
+        <label>Accommodation<input id="filterAccommodation" placeholder="Search lodge" /></label>
+        <label>Guide<input id="filterGuide" placeholder="Search guide" /></label>
+        <label>From<input id="filterFrom" type="date" /></label>
+        <label>To<input id="filterTo" type="date" /></label>
+        <label>Max Average<select id="filterMaxAvg"><option value="">All</option><option value="2">2 or lower</option><option value="3">3 or lower</option><option value="4">4 or lower</option></select></label>
+        <button id="clearFilters" class="secondary">Clear</button>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat"><span>Total Surveys</span><strong id="statCount">0</strong></div>
+        <div class="stat"><span>Average Score</span><strong id="statAverage">-</strong></div>
+        <div class="stat"><span>Low Score Items</span><strong id="statLowItems">-</strong></div>
+        <div class="stat"><span>Latest Survey</span><strong id="statLatest">-</strong></div>
+      </div>
+
+      <h3>Item Average</h3>
+      <div id="itemAverages" class="bar-list"></div>
+
+      <h3>Priority Improvement Items</h3>
+      <div id="priorityItems" class="priority-list"></div>
+
+      <div class="button-row export-row">
+        <button id="exportCsv" class="primary">Export CSV</button>
+        <button id="exportJson" class="secondary">Export JSON</button>
+        <button id="loadSample" class="secondary">Load Sample Data</button>
+        <button id="deleteAll" class="danger hidden admin-only">Delete All Data</button>
+      </div>
+
+      <h3>Survey List</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>BTIS No.</th><th>Accommodation</th><th>Guide</th><th>Average</th><th>Lowest Item</th><th class="admin-only hidden">Action</th></tr></thead>
+          <tbody id="surveyTable"></tbody>
+        </table>
+      </div>
     </section>
   </main>
 
-  <footer>BTIS v0.5 prototype — local storage only</footer>
+  <footer>BTIS v0.6 Prototype — Local browser storage only</footer>
   <script src="app.js"></script>
 </body>
 </html>
