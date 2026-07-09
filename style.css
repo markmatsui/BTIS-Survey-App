@@ -1,18 +1,52 @@
-:root{--green:#0f4f3a;--light:#eef6f1;--line:#b9cfc3;--text:#1d1d1f}
-*{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#f7f8f6;color:var(--text)}
-#app{max-width:920px;margin:auto;padding:18px} header{display:flex;gap:16px;align-items:center;margin-bottom:18px}
-.emblem{width:64px;height:64px;border:3px solid var(--green);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--green)}
-h1{font-size:22px;margin:0;color:var(--green)} header p{margin:4px 0 0}.card{background:white;border:1.5px solid var(--line);border-radius:18px;padding:22px;box-shadow:0 4px 16px #00000010;margin-bottom:16px}
-.subcard{background:var(--light);border:1px solid var(--line);border-radius:14px;padding:14px;margin:14px 0}.hidden{display:none} h2{margin-top:0;color:var(--green)} h3{color:var(--green)}
-button{background:var(--green);color:white;border:0;border-radius:12px;padding:13px 16px;margin:8px 8px 0 0;font-size:16px;font-weight:700}
-button.secondary{background:#e9eee9;color:var(--green)} button.print{background:#444}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-label{display:block;font-weight:700;margin:12px 0 6px} input,select,textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font-size:16px;background:white}
-input[readonly]{background:#f2f4f2;color:#0f4f3a;font-weight:800}
-.rating{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:20px 0}.rating button{font-size:24px;padding:20px 0;background:#f1f5f2;color:var(--green);border:2px solid var(--line)}.rating button.selected{background:var(--green);color:white}
-.quiet{font-size:11px;color:#777;font-weight:400}.progressText{font-size:13px;color:var(--green);font-weight:700}.item{border:1px solid var(--line);border-radius:12px;padding:10px;margin:8px 0}.item b{color:var(--green)}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.stats div{background:var(--light);padding:18px;border-radius:14px;text-align:center}.stats b{display:block;font-size:30px;color:var(--green)}
-#printArea{display:none}@media(max-width:650px){.grid{grid-template-columns:1fr}.rating{grid-template-columns:repeat(5,1fr)}}
-@media print{body{background:white}header,main{display:none}#printArea{display:block;font-size:11px}.print-title{font-size:20px;font-weight:800;color:#0f4f3a;text-align:center;margin-bottom:8px}.print-box{border:1px solid #0f4f3a;margin:6px 0;padding:6px}table{width:100%;border-collapse:collapse;margin-top:4px}th,td{border:1px solid #555;padding:3px;text-align:left}th{background:#eee}.tiny{font-size:8px;color:#777}}
-
-.modebar{background:#eef6f1;border:1px solid #b9cfc3;border-radius:12px;padding:10px;margin-bottom:12px}
-.modebar label{margin:0}
+:root {
+  --bg: #fff7fb;
+  --card: #ffffff;
+  --text: #2a2430;
+  --muted: #746a78;
+  --line: #ead8e4;
+  --primary: #c2187a;
+  --primary-dark: #8e0f59;
+  --soft: #f8ddea;
+  --danger: #9a1f1f;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }
+.app-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; }
+h1 { margin: .1rem 0; font-size: 1.7rem; }
+h2 { margin-top: 0; }
+h3 { margin-bottom: .5rem; }
+.eyebrow, .version { opacity: .88; font-size: .85rem; margin: 0; }
+main { width: min(980px, 100%); margin: 1rem auto; padding: 0 1rem; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 1rem; box-shadow: 0 8px 20px rgba(70, 20, 50, .08); }
+.step { display: none; }
+.step.active { display: block; }
+.stepper { display: flex; gap: .35rem; margin-bottom: 1rem; }
+.dot { height: .5rem; flex: 1; border-radius: 999px; background: var(--line); }
+.dot.active { background: var(--primary); }
+label { display: block; font-weight: 650; margin: .8rem 0 .35rem; }
+input, select, textarea { width: 100%; border: 1px solid var(--line); border-radius: 12px; padding: .75rem; font: inherit; background: #fff; }
+textarea { resize: vertical; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
+.hint { color: var(--muted); font-size: .92rem; }
+button { border: 0; border-radius: 999px; padding: .72rem 1rem; font-weight: 750; cursor: pointer; }
+.primary { background: var(--primary); color: #fff; }
+.secondary { background: var(--soft); color: var(--primary-dark); }
+.danger { background: #ffe0e0; color: var(--danger); margin-top: 1rem; }
+.full { width: 100%; margin-top: .7rem; }
+.nav-row, .button-row, .dash-head { display: flex; justify-content: space-between; align-items: center; gap: .7rem; margin-top: 1rem; }
+.ratings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; }
+.rating-card { border: 1px solid var(--line); border-radius: 14px; padding: .8rem; background: #fffafd; }
+.score-row { display: flex; gap: .35rem; margin-top: .45rem; }
+.score-row label { margin: 0; font-weight: 600; }
+.score-row input { display: none; }
+.score-row span { display: inline-flex; align-items: center; justify-content: center; width: 2.1rem; height: 2.1rem; border-radius: 50%; border: 1px solid var(--line); background: white; }
+.score-row input:checked + span { background: var(--primary); color: white; border-color: var(--primary); }
+.preview { max-width: 100%; border-radius: 14px; margin-top: .8rem; border: 1px solid var(--line); }
+.hidden { display: none !important; }
+.summary, .stat, .survey-item, .priority-item { background: #fffafd; border: 1px solid var(--line); border-radius: 14px; padding: .8rem; margin: .5rem 0; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .7rem; }
+.stat strong { display: block; font-size: 1.5rem; color: var(--primary-dark); }
+.checkbox { display: flex; align-items: center; gap: .5rem; }
+.checkbox input { width: auto; }
+footer { text-align: center; color: var(--muted); padding: 1.5rem; font-size: .85rem; }
+@media (max-width: 700px) { .two-col, .ratings-grid, .stats { grid-template-columns: 1fr; } .app-header { align-items: flex-start; } }

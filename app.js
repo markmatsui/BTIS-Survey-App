@@ -1,106 +1,241 @@
-const items = [
-["Reservation","Was the booking handled clearly?"],
-["Check-in","Was arrival smooth?"],
-["Check-out","Was departure smooth?"],
-["Cleanliness","Was the room and public area clean?"],
-["Room Comfort","Was the room comfortable?"],
-["Bathroom","Was the bathroom clean and working?"],
-["Hot Water","Was hot water available when needed?"],
-["Electricity & Power Outlets","Were plugs and power reliable?"],
-["Food","Was food acceptable and suitable?"],
-["Hospitality","Were staff kind and helpful?"],
-["Security","Did the guest feel safe and secure?"],
-["Wi-Fi / Communication","Was internet or communication adequate?"],
-["Accessibility","Was movement easy for guests with luggage or disability?"],
-["Value for Money","Was the stay worth the price?"],
-["Overall Experience","Overall impression."]
+const ratingItems = [
+  'Reservation', 'Check-in', 'Cleanliness', 'Room', 'Bathroom', 'Hot Water',
+  'Electricity', 'Food', 'Hospitality', 'Safety', 'Value', 'Overall'
 ];
-let idx=0, currentId=null, ratings={}, itemComments={};
+const lodgeCodes = {
+  'RASESA': { accommodation: 'Rasesa Lodge', location: 'Rasesa', guide: 'George' },
+  'BTIS-RASESA': { accommodation: 'Rasesa Lodge', location: 'Rasesa', guide: 'George' }
+};
+const storageKey = 'btis_surveys_v0_5';
+let currentStep = 0;
+let photoData = '';
+let recognition = null;
 
-function all(){return JSON.parse(localStorage.getItem("btis_surveys_v04")||"{}")}
-function saveAll(obj){localStorage.setItem("btis_surveys_v04",JSON.stringify(obj))}
-function guides(){let g=JSON.parse(localStorage.getItem("btis_guides_v04")||"[]"); if(!g.length){g=[{name:"George", id:"DEMO-GEORGE"}]; localStorage.setItem("btis_guides_v04",JSON.stringify(g));} return g}
-function saveGuides(g){localStorage.setItem("btis_guides_v04",JSON.stringify(g))}
-function now(){return new Date().toLocaleString()}
-function logAction(action){ if(!currentId)return; let db=all(); if(db[currentId]){db[currentId].history=db[currentId].history||[]; db[currentId].history.push({time:now(), action}); saveAll(db);} }
-function go(id){document.querySelectorAll("main section").forEach(s=>s.classList.add("hidden"));document.getElementById(id).classList.remove("hidden"); if(id==="account") renderGuideSelect(); if(id==="settings") renderSettings(); if(id==="accounts") renderAccounts(); if(id==="dashboard") updateDashboard(); if(id==="review") renderReview();}
-function renderGuideSelect(){let list=guides(); guideSelect.innerHTML=list.map(g=>`<option value="${g.name}">${g.name}</option>`).join("")+`<option value="__new__">+ New Guide</option>`; handleGuideSelect();}
-function handleGuideSelect(){newGuideBox.classList.toggle("hidden", guideSelect.value!="__new__"); suggestTravellerId();}
-function renderSettings(){guideList.innerHTML=guides().map(g=>`<div class="item"><b>${g.name}</b><br><span class="quiet">ID: ${g.id}</span></div>`).join("")}
-function registerGuide(name,id){name=(name||"").trim(); id=(id||"").trim(); if(!name||!id){alert("Guide Name and Passport / National ID are required."); return false;} let g=guides(); if(!g.some(x=>x.name.toLowerCase()==name.toLowerCase())) g.push({name,id}); saveGuides(g); return true;}
-function registerGuideFromAccount(){if(registerGuide(newGuideName.value,newGuideId.value)){renderGuideSelect(); guideSelect.value=newGuideName.value; newGuideBox.classList.add("hidden"); suggestTravellerId();}}
-function registerGuideFromSettings(){if(registerGuide(settingsGuideName.value,settingsGuideId.value)){settingsGuideName.value="";settingsGuideId.value="";renderSettings();}}
-function countryCode(n){return (n||"XX").trim().slice(0,2).toUpperCase().replace(/[^A-Z]/g,"X") || "XX"}
-function cleanName(n){return (n||"GUEST").trim().toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,6) || "GUEST"}
-function suggestTravellerId(){
- let name=travellerName.value.trim(); let nat=nationality.value.trim(); let guide=guideSelect.value=="__new__" ? newGuideName.value : guideSelect.value;
- if(!name||!nat||!guide){travellerId.value=""; return;}
- let db=all(); let existing=Object.values(db).find(s=>(s.travellerName||"").toLowerCase()==name.toLowerCase() && (s.nationality||"").toLowerCase()==nat.toLowerCase());
- if(existing){travellerId.value=existing.id; return;}
- let base=`BTIS-${countryCode(nat)}-${cleanName(name)}`;
- let n=1, id=`${base}-${String(n).padStart(3,"0")}`;
- while(db[id]){n++; id=`${base}-${String(n).padStart(3,"0")}`;}
- travellerId.value=id;
+const form = document.getElementById('surveyForm');
+const steps = [...document.querySelectorAll('.step')];
+const stepper = document.getElementById('stepper');
+const ratings = document.getElementById('ratings');
+
+function init() {
+  document.getElementById('surveyDate').valueAsDate = new Date();
+  document.getElementById('btisNo').value = makeBtisNo();
+  steps.forEach((_, i) => {
+    const dot = document.createElement('div');
+    dot.className = 'dot';
+    stepper.appendChild(dot);
+  });
+  renderRatings();
+  bindEvents();
+  updateStep();
 }
-function createOrOpenAccount(){
- suggestTravellerId();
- if(guideSelect.value=="__new__"){alert("Please register the new guide first."); return;}
- let id=travellerId.value.trim(); if(!id){alert("Name / Nickname, Nationality, and Guide are required."); return;}
- let db=all();
- if(!db[id]) db[id]={id, travellerName:travellerName.value, nationality:nationality.value, guide:guideSelect.value, ratings:{}, itemComments:{}, history:[]};
- currentId=id; loadSurvey(db[id]); logAction("Account opened / created"); go("profile");
+
+function makeBtisNo() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  return `BTIS-${y}${m}${day}-${rand}`;
 }
-function loadSurvey(s){
- currentId=s.id; travellerId.value=s.id||""; travellerName.value=s.travellerName||""; nationality.value=s.nationality||"";
- renderGuideSelect(); guideSelect.value=s.guide||"George";
- accommodation.value=s.accommodation||""; location.value=s.location||""; travelType.value=s.travelType||"Solo"; purpose.value=s.purpose||"Holiday"; nights.value=s.nights||1; guests.value=s.guests||1;
- ratings=s.ratings||{}; itemComments=s.itemComments||{}; improve.value=s.improve||""; continueWell.value=s.continueWell||""; guideNote.value=s.guideNote||""; response.value=s.response||""; contactInfo.value=s.contactInfo||""; mayContact.checked=!!s.mayContact;
- if(inputMode) inputMode.value=s.inputMode||"guest";
- activeAccount.textContent="Traveller Account: "+currentId;
- updateMode();
+
+function renderRatings() {
+  ratings.innerHTML = ratingItems.map(item => `
+    <div class="rating-card">
+      <strong>${item}</strong>
+      <div class="score-row">
+        ${[1,2,3,4,5].map(n => `
+          <label><input type="radio" name="rating_${item}" value="${n}"><span>${n}</span></label>
+        `).join('')}
+      </div>
+    </div>`).join('');
 }
-function collect(){ saveItemComment(); return {id:currentId, travellerName:travellerName.value, nationality:nationality.value, guide:guideSelect.value, inputMode:inputMode ? inputMode.value : "guest", accommodation:accommodation.value, location:location.value, travelType:travelType.value, purpose:purpose.value, nights:nights.value, guests:guests.value, ratings, itemComments, improve:improve.value, continueWell:continueWell.value, guideNote:guideNote.value, response:response.value, contactInfo:contactInfo.value, mayContact:mayContact.checked, history:(all()[currentId]?.history||[])};}
-function saveCurrent(action="Saved"){ if(!currentId)return; let db=all(); db[currentId]=collect(); saveAll(db); logAction(action); }
-function startRatings(){saveCurrent("Entered rating screen");idx=0;showRating();go("ratings")}
-function saveAndGo(id){saveCurrent("Saved and moved to "+id);go(id)}
-function saveItemComment(){ if(document.getElementById("itemComment")) itemComments[items[idx][0]]=itemComment.value; }
-function showRating(){
- const [name,hint]=items[idx];
- progressText.textContent=`Item ${idx+1} / ${items.length}`;
- ratingTitle.textContent=name;
- ratingHint.textContent=hint;
- ratingButtons.innerHTML="";
- for(let n=1;n<=5;n++){
-   let b=document.createElement("button");
-   b.textContent=n;
-   b.onclick=()=>{
-     saveItemComment();
-     ratings[name]=n;
-     showRating();
-     setTimeout(()=>itemComment.focus(),0);
-   };
-   if(ratings[name]===n)b.classList.add("selected");
-   ratingButtons.appendChild(b);
- }
- itemComment.value=itemComments[name]||"";
+
+function bindEvents() {
+  document.getElementById('nextBtn').addEventListener('click', () => { if (currentStep < steps.length - 1) currentStep++; updateStep(); });
+  document.getElementById('prevBtn').addEventListener('click', () => { if (currentStep > 0) currentStep--; updateStep(); });
+  document.getElementById('applyQr').addEventListener('click', applyQr);
+  document.getElementById('photoInput').addEventListener('change', handlePhoto);
+  document.getElementById('dashboardBtn').addEventListener('click', showDashboard);
+  document.getElementById('newSurveyBtn').addEventListener('click', showSurvey);
+  document.getElementById('clearData').addEventListener('click', clearData);
+  document.getElementById('exportJson').addEventListener('click', exportJson);
+  document.getElementById('startVoice').addEventListener('click', startVoiceInput);
+  document.getElementById('stopVoice').addEventListener('click', stopVoiceInput);
+  form.addEventListener('submit', saveSurvey);
+  form.addEventListener('input', () => { if (currentStep === steps.length - 1) renderSummary(); });
 }
-function nextRating(){saveItemComment();saveCurrent("Added / edited: "+items[idx][0]); if(idx<items.length-1){idx++;showRating()} else go("review")}
-function prevRating(){saveItemComment();saveCurrent("Moved back from rating"); if(idx>0){idx--;showRating()} else go("profile")}
-function renderReview(){ saveCurrent("Viewed review screen"); reviewList.innerHTML=items.map(([k])=>`<div class="item"><b>${k}</b>: ${ratings[k]||"-"}<br><span class="quiet">${itemComments[k]||""}</span></div>`).join("");}
-function renderAccounts(){ let db=all(); accountList.innerHTML=Object.values(db).map(s=>`<div class="item"><b>${s.id}</b> ${s.travellerName||""}<br>${s.accommodation||""} ${s.nationality||""}<br><span class="quiet">${(s.history||[]).slice(-1)[0]?.action||""}</span><br><button onclick="openSurvey('${s.id}')">Open</button></div>`).join("") || "<p>No saved surveys.</p>";}
-function openSurvey(id){let db=all(); loadSurvey(db[id]); logAction("Opened existing survey for viewing / editing"); go("profile")}
-function finishSurvey(){saveCurrent("Finished and logged out"); currentId=null; go("home")}
-function printCurrent(){saveCurrent("Printed draft / final"); let s=collect(); let rows=items.map(([k])=>`<tr><td>${k}</td><td>${s.ratings[k]||""}</td><td>${(s.itemComments[k]||"").replaceAll("<","&lt;")}</td></tr>`).join(""); printArea.innerHTML=`<div class="print-title">BTIS Accommodation Improvement Report</div><div class="print-box"><b>Traveller:</b> ${s.id||""} ${s.travellerName||""} / ${s.nationality||""}</div><div class="print-box"><b>Accommodation:</b> ${s.accommodation||""} / ${s.location||""} / Guide: ${s.guide||""}</div><div class="print-box"><table><tr><th>Item</th><th>Score</th><th>Optional Comment</th></tr>${rows}</table></div><div class="print-box"><b>Anything improved?</b><br>${s.improve||""}</div><div class="print-box"><b>Continue doing well?</b><br>${s.continueWell||""}</div><div class="print-box"><b>FOR BTIS USE ONLY — Guide's Note</b><br>${s.guideNote||""}</div><div class="tiny">Optional Contact not shared with accommodation: ${s.contactInfo||""}</div>`; window.print();}
-function updateDashboard(){let db=Object.values(all()); surveyCount.textContent=db.length; let total=0,n=0,sums={},counts={}; db.forEach(s=>Object.entries(s.ratings||{}).forEach(([k,v])=>{total+=v;n++;sums[k]=(sums[k]||0)+v;counts[k]=(counts[k]||0)+1;})); if(!n){avgScore.textContent="-";priority.textContent="-";aiText.textContent="No surveys yet.";return} let av=Object.keys(sums).map(k=>[k,sums[k]/counts[k]]).sort((a,b)=>a[1]-b[1]); avgScore.textContent=(total/n).toFixed(1); priority.textContent=av[0][0]; aiText.textContent=`Current priority: ${av[0][0]} (${av[0][1].toFixed(1)} average).`;}
-function updateMode(){
- const mode = inputMode ? inputMode.value : "guest";
- const guideSectionButton = document.getElementById("commentsNextBtn");
- if(guideSectionButton) guideSectionButton.textContent = mode==="guest" ? "Finish Guest Section" : "Next";
+
+function updateStep() {
+  steps.forEach((s, i) => s.classList.toggle('active', i === currentStep));
+  [...stepper.children].forEach((d, i) => d.classList.toggle('active', i <= currentStep));
+  document.getElementById('prevBtn').style.visibility = currentStep === 0 ? 'hidden' : 'visible';
+  document.getElementById('nextBtn').style.display = currentStep === steps.length - 1 ? 'none' : 'inline-block';
+  if (currentStep === steps.length - 1) renderSummary();
 }
-function nextAfterComments(){
- saveCurrent("Saved guest comments");
- const mode = inputMode ? inputMode.value : "guest";
- if(mode==="guest"){ go("contact"); }
- else { go("guide"); }
+
+function applyQr() {
+  const raw = document.getElementById('qrText').value.trim();
+  if (!raw) return;
+  let data = lodgeCodes[raw.toUpperCase()];
+  if (!data) {
+    try { data = JSON.parse(raw); } catch { data = null; }
+  }
+  if (!data) { alert('QR / Lodge Code not recognised. You can still enter manually.'); return; }
+  ['accommodation', 'location', 'guide'].forEach(k => { if (data[k]) document.getElementById(k).value = data[k]; });
 }
-go("home");
+
+function handlePhoto(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    photoData = reader.result;
+    const img = document.getElementById('photoPreview');
+    img.src = photoData;
+    img.classList.remove('hidden');
+  };
+  reader.readAsDataURL(file);
+}
+
+function collectData() {
+  const fd = new FormData(form);
+  const data = Object.fromEntries(fd.entries());
+  data.mayContact = fd.get('mayContact') === 'on';
+  data.photo = photoData;
+  data.createdAt = new Date().toISOString();
+  data.ratings = {};
+  ratingItems.forEach(item => data.ratings[item] = Number(fd.get(`rating_${item}`) || 0));
+  return data;
+}
+
+function renderSummary() {
+  const data = collectData();
+  const avg = averageScore(data.ratings);
+  document.getElementById('summaryBox').innerHTML = `
+    <p><strong>${data.btisNo || '(No BTIS No.)'}</strong></p>
+    <p>${data.accommodation || '(Accommodation not entered)'} — ${data.location || ''}</p>
+    <p>Average score: <strong>${avg || '-'}</strong></p>
+    <p>Guest: ${data.nationality || '-'} / ${data.travelType || '-'}</p>
+  `;
+}
+
+function saveSurvey(e) {
+  e.preventDefault();
+  const surveys = loadSurveys();
+  surveys.unshift(collectData());
+  localStorage.setItem(storageKey, JSON.stringify(surveys));
+  alert('Survey saved locally.');
+  form.reset();
+  photoData = '';
+  document.getElementById('photoPreview').classList.add('hidden');
+  document.getElementById('surveyDate').valueAsDate = new Date();
+  document.getElementById('btisNo').value = makeBtisNo();
+  currentStep = 0;
+  updateStep();
+}
+
+function loadSurveys() {
+  try { return JSON.parse(localStorage.getItem(storageKey)) || []; } catch { return []; }
+}
+
+function averageScore(ratingsObj) {
+  const vals = Object.values(ratingsObj || {}).filter(v => v > 0);
+  if (!vals.length) return 0;
+  return (vals.reduce((a,b) => a+b, 0) / vals.length).toFixed(1);
+}
+
+function showDashboard() {
+  document.getElementById('surveyView').classList.add('hidden');
+  document.getElementById('dashboardView').classList.remove('hidden');
+  renderDashboard();
+}
+function showSurvey() {
+  document.getElementById('dashboardView').classList.add('hidden');
+  document.getElementById('surveyView').classList.remove('hidden');
+}
+
+function renderDashboard() {
+  const surveys = loadSurveys();
+  const allScores = surveys.flatMap(s => Object.values(s.ratings || {}).filter(v => v > 0));
+  const avg = allScores.length ? (allScores.reduce((a,b) => a+b, 0) / allScores.length).toFixed(1) : '-';
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><strong>${surveys.length}</strong>Surveys</div>
+    <div class="stat"><strong>${avg}</strong>Average</div>
+    <div class="stat"><strong>${new Set(surveys.map(s => s.accommodation).filter(Boolean)).size}</strong>Accommodations</div>
+  `;
+  renderPriorities(surveys);
+  document.getElementById('surveyList').innerHTML = surveys.map(s => `
+    <div class="survey-item">
+      <strong>${s.btisNo}</strong><br>
+      ${s.accommodation || '-'} / ${s.location || '-'}<br>
+      Average: ${averageScore(s.ratings)}<br>
+      <small>${new Date(s.createdAt).toLocaleString()}</small>
+    </div>
+  `).join('') || '<p class="hint">No surveys saved yet.</p>';
+}
+
+function renderPriorities(surveys) {
+  const sums = {};
+  const counts = {};
+  ratingItems.forEach(i => { sums[i] = 0; counts[i] = 0; });
+  surveys.forEach(s => ratingItems.forEach(i => {
+    const v = Number(s.ratings?.[i] || 0);
+    if (v > 0) { sums[i] += v; counts[i]++; }
+  }));
+  const rows = ratingItems.map(i => ({ item: i, avg: counts[i] ? sums[i] / counts[i] : 0, count: counts[i] }))
+    .filter(r => r.count)
+    .sort((a,b) => a.avg - b.avg)
+    .slice(0, 5);
+  document.getElementById('priorityList').innerHTML = rows.map(r => `
+    <div class="priority-item"><strong>${r.item}</strong>: ${r.avg.toFixed(1)} average — improvement priority</div>
+  `).join('') || '<p class="hint">No rating data yet.</p>';
+}
+
+function clearData() {
+  if (!confirm('Clear all local BTIS survey data?')) return;
+  localStorage.removeItem(storageKey);
+  renderDashboard();
+}
+
+function exportJson() {
+  const blob = new Blob([JSON.stringify(loadSurveys(), null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'btis-surveys-v0-5.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function startVoiceInput() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const status = document.getElementById('voiceStatus');
+  if (!SpeechRecognition) {
+    status.textContent = 'Voice input is not supported in this browser. Please type the summary.';
+    return;
+  }
+  recognition = new SpeechRecognition();
+  recognition.lang = 'en-US';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.onresult = e => {
+    let text = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) text += e.results[i][0].transcript;
+    document.getElementById('voiceNote').value = text.trim();
+  };
+  recognition.onend = () => {
+    document.getElementById('startVoice').disabled = false;
+    document.getElementById('stopVoice').disabled = true;
+    status.textContent = 'Voice input stopped.';
+  };
+  recognition.start();
+  document.getElementById('startVoice').disabled = true;
+  document.getElementById('stopVoice').disabled = false;
+  status.textContent = 'Listening...';
+}
+
+function stopVoiceInput() {
+  if (recognition) recognition.stop();
+}
+
+init();

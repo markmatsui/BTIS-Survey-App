@@ -1,157 +1,138 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BTIS Survey App v0.4</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BTIS Survey v0.5</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-<div id="app">
-<header>
-  <div class="emblem">BTIS</div>
-  <div><h1>Botswana Tourism Improvement System</h1><p>Accommodation Improvement Survey v0.4</p></div>
-</header>
-
-<main>
-<section class="card" id="home">
-  <h2>BTIS Survey</h2>
-  <button onclick="go('account')">Create / Open Traveller Account</button>
-  <button class="secondary" onclick="go('accounts')">Open Existing Survey</button>
-  <button class="secondary" onclick="go('settings')">System Settings</button>
-  <button class="secondary" onclick="go('dashboard')">Dashboard</button>
-</section>
-
-<section class="card hidden" id="account">
-  <h2>Traveller Account</h2>
-  <div class="grid">
-    <label>Name / Nickname<input id="travellerName" oninput="suggestTravellerId()"></label>
-    <label>Nationality<input id="nationality" oninput="suggestTravellerId()"></label>
-    <label>Guide<select id="guideSelect" onchange="handleGuideSelect()"></select></label>
-    <label>Traveller ID<input id="travellerId" readonly placeholder="Auto-generated"></label>
-  </div>
-  <div id="newGuideBox" class="subcard hidden">
-    <h3>New Guide Registration</h3>
-    <div class="grid">
-      <label>Guide Name<input id="newGuideName"></label>
-      <label>Passport / National ID<input id="newGuideId"></label>
+  <header class="app-header">
+    <div>
+      <div class="eyebrow">Botswana Tourism Improvement System</div>
+      <h1>BTIS Survey</h1>
+      <p class="version">Version 0.5 Prototype</p>
     </div>
-    <button onclick="registerGuideFromAccount()">Register Guide</button>
-  </div>
-  <p class="quiet">If the same traveller name already exists, the existing account will be opened.</p>
-  <button onclick="createOrOpenAccount()">Create / Open</button>
-  <button class="secondary" onclick="go('home')">Back</button>
-</section>
+    <button id="dashboardBtn" class="secondary">Dashboard</button>
+  </header>
 
-<section class="card hidden" id="settings">
-  <h2>System Settings</h2>
-  <h3>Registered Guides</h3>
-  <div id="guideList"></div>
-  <div class="subcard">
-    <h3>Add New Guide</h3>
-    <div class="grid">
-      <label>Guide Name<input id="settingsGuideName"></label>
-      <label>Passport / National ID<input id="settingsGuideId"></label>
-    </div>
-    <button onclick="registerGuideFromSettings()">Register</button>
-  </div>
-  <button class="secondary" onclick="go('home')">Back</button>
-</section>
+  <main>
+    <section id="surveyView" class="card">
+      <div class="stepper" id="stepper"></div>
 
-<section class="card hidden" id="accounts">
-  <h2>Existing Surveys</h2>
-  <div id="accountList"></div>
-  <button class="secondary" onclick="go('home')">Back</button>
-</section>
+      <form id="surveyForm">
+        <section class="step active" data-step="0">
+          <h2>New Survey</h2>
+          <p class="hint">Start a new accommodation improvement report.</p>
+          <label>BTIS No.<input name="btisNo" id="btisNo" placeholder="Auto or manual" /></label>
+          <div class="two-col">
+            <label>Accommodation<input name="accommodation" id="accommodation" required /></label>
+            <label>Location<input name="location" id="location" /></label>
+          </div>
+          <div class="two-col">
+            <label>Guide<input name="guide" id="guide" /></label>
+            <label>Survey Date<input name="surveyDate" id="surveyDate" type="date" /></label>
+          </div>
+          <label>QR / Lodge Code
+            <input id="qrText" placeholder="Paste QR text or lodge code here" />
+          </label>
+          <button type="button" id="applyQr" class="secondary full">Apply QR / Lodge Code</button>
+        </section>
 
-<section class="card hidden" id="profile">
-  <h2>Guest Profile</h2>
-  <div class="modebar">
-    <label>Input Mode
-      <select id="inputMode" onchange="updateMode()">
-        <option value="guest">Guest</option>
-        <option value="guide">Guide / BTIS</option>
-      </select>
-    </label>
-  </div>
-  <p class="quiet" id="activeAccount"></p>
-  <div class="grid">
-    <label>Accommodation<input id="accommodation"></label>
-    <label>Location<input id="location"></label>
-    <label>Travel Type<select id="travelType"><option>Solo</option><option>Couple</option><option>Family</option><option>Friends</option><option>Group</option></select></label>
-    <label>Purpose<select id="purpose"><option>Holiday</option><option>Business</option><option>Culture</option><option>Other</option></select></label>
-    <label>Nights<input id="nights" type="number" min="1" value="1"></label>
-    <label>Guests<input id="guests" type="number" min="1" value="1"></label>
-  </div>
-  <button onclick="startRatings()">Start / Review Ratings</button>
-  <button class="secondary" onclick="go('account')">Back to Account</button>
-  <button class="print" onclick="printCurrent()">Print Draft</button>
-</section>
+        <section class="step" data-step="1">
+          <h2>Guest Profile</h2>
+          <div class="two-col">
+            <label>Nationality<input name="nationality" /></label>
+            <label>Age Group<select name="ageGroup"><option></option><option>&lt;20</option><option>20-39</option><option>40-59</option><option>60+</option></select></label>
+          </div>
+          <div class="two-col">
+            <label>Travel Type<select name="travelType"><option></option><option>Solo</option><option>Couple</option><option>Family</option><option>Friends</option><option>Group</option></select></label>
+            <label>Purpose<select name="purpose"><option></option><option>Holiday</option><option>Business</option><option>Culture</option><option>Other</option></select></label>
+          </div>
+          <div class="two-col">
+            <label>Check-in<input name="checkIn" type="date" /></label>
+            <label>Check-out<input name="checkOut" type="date" /></label>
+          </div>
+          <div class="two-col">
+            <label>Nights<input name="nights" type="number" min="1" /></label>
+            <label>Guests<input name="guests" type="number" min="1" /></label>
+          </div>
+        </section>
 
-<section class="card hidden" id="ratings">
-  <div class="topbar">
-    <button class="secondary" onclick="saveAndGo('profile')">Guest Profile</button>
-    <button class="secondary" id="reviewJumpBtn" onclick="saveAndGo('review')">Review All</button>
-    <button class="print" onclick="printCurrent()">Print Draft</button>
-  </div>
-  <p class="progressText" id="progressText"></p>
-  <h2 id="ratingTitle"></h2>
-  <p id="ratingHint"></p>
-  <div class="rating" id="ratingButtons"></div>
-  <label>Optional comment for this item<textarea id="itemComment" rows="3" placeholder="Leave blank if there is nothing to add."></textarea></label>
-  <button class="secondary" onclick="prevRating()">Back</button>
-  <button onclick="nextRating()">Save & Next</button>
-</section>
+        <section class="step" data-step="2">
+          <h2>Improvement Review</h2>
+          <p class="hint">1 = Poor / 5 = Excellent. This is not a rating system. It is an improvement system.</p>
+          <div id="ratings" class="ratings-grid"></div>
+        </section>
 
-<section class="card hidden" id="review">
-  <h2>Review All Entries</h2>
-  <div id="reviewList"></div>
-  <button class="secondary" onclick="startRatings()">Edit Ratings</button>
-  <button onclick="go('comments')">Continue</button>
-  <button class="print" onclick="printCurrent()">Print Draft</button>
-</section>
+        <section class="step" data-step="3">
+          <h2>Guest Comments</h2>
+          <label>Anything that could be improved?<textarea name="improve" rows="4"></textarea></label>
+          <label>What should we continue doing well?<textarea name="continueWell" rows="4"></textarea></label>
+          <label>Voice comment note / transcript<textarea name="voiceNote" id="voiceNote" rows="3" placeholder="Record audio on phone if available, or type summary here."></textarea></label>
+          <div class="button-row">
+            <button type="button" id="startVoice" class="secondary">Start Voice Input</button>
+            <button type="button" id="stopVoice" class="secondary" disabled>Stop</button>
+          </div>
+          <p id="voiceStatus" class="hint"></p>
+        </section>
 
-<section class="card hidden" id="comments">
-  <h2>Guest Comments</h2>
-  <label>Anything that could be improved?<textarea id="improve" rows="5"></textarea></label>
-  <label>What should we continue doing well?<textarea id="continueWell" rows="4"></textarea></label>
-  <button class="secondary" onclick="go('review')">Back</button>
-  <button id="commentsNextBtn" onclick="nextAfterComments()">Next</button>
-  <button class="print" onclick="printCurrent()">Print Draft</button>
-</section>
+        <section class="step" data-step="4">
+          <h2>Photo / Evidence</h2>
+          <p class="hint">Attach one photo if it helps explain the improvement point.</p>
+          <input id="photoInput" name="photo" type="file" accept="image/*" capture="environment" />
+          <img id="photoPreview" alt="Photo preview" class="preview hidden" />
+          <label>Photo note<textarea name="photoNote" rows="3"></textarea></label>
+        </section>
 
-<section class="card hidden" id="guide">
-  <h2>For BTIS Use Only</h2>
-  <label>Guide's Note<textarea id="guideNote" rows="4"></textarea></label>
-  <label>Accommodation Response<textarea id="response" rows="4"></textarea></label>
-  <button class="secondary" onclick="go('comments')">Back</button>
-  <button onclick="go('contact')">Next</button>
-  <button class="print" onclick="printCurrent()">Print Draft</button>
-</section>
+        <section class="step" data-step="5">
+          <h2>Guide's Note</h2>
+          <label>Private note for BTIS use<textarea name="guideNote" rows="5"></textarea></label>
+          <label>Accommodation response<textarea name="accommodationResponse" rows="4"></textarea></label>
+        </section>
 
-<section class="card hidden" id="contact">
-  <p class="quiet">Optional Follow-up Contact — this section will not be shared with the accommodation.</p>
-  <label>Email / WhatsApp<input id="contactInfo"></label>
-  <label class="quiet"><input type="checkbox" id="mayContact"> May BTIS contact this guest?</label>
-  <button class="secondary" onclick="go('guide')">Back</button>
-  <button onclick="finishSurvey()">Finish & Log Out</button>
-  <button class="print" onclick="printCurrent()">Print Final</button>
-</section>
+        <section class="step" data-step="6">
+          <h2>Optional Follow-up Contact</h2>
+          <p class="hint">This section is optional and should not be shared with accommodation without permission.</p>
+          <div class="two-col">
+            <label>Name / Nickname<input name="contactName" /></label>
+            <label>Email / WhatsApp<input name="contact" /></label>
+          </div>
+          <label class="checkbox"><input name="mayContact" type="checkbox" /> May we contact you?</label>
+        </section>
 
-<section class="card hidden" id="dashboard">
-  <h2>BTIS Dashboard</h2>
-  <div class="stats">
-    <div><b id="surveyCount">0</b><span>Surveys</span></div>
-    <div><b id="avgScore">-</b><span>Average</span></div>
-    <div><b id="priority">-</b><span>Priority</span></div>
-  </div>
-  <p id="aiText">No surveys yet.</p>
-  <button onclick="go('home')">Home</button>
-</section>
-</main>
+        <section class="step" data-step="7">
+          <h2>Submit</h2>
+          <div id="summaryBox" class="summary"></div>
+          <button type="submit" class="primary full">Save Survey</button>
+          <button type="button" id="exportJson" class="secondary full">Export All Data as JSON</button>
+        </section>
 
-<section id="printArea"></section>
-</div>
-<script src="app.js"></script>
+        <div class="nav-row">
+          <button type="button" id="prevBtn" class="secondary">Back</button>
+          <button type="button" id="nextBtn" class="primary">Next</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="dashboardView" class="card hidden">
+      <div class="dash-head">
+        <div>
+          <h2>BTIS Dashboard</h2>
+          <p class="hint">Local prototype dashboard. Data is saved in this browser only.</p>
+        </div>
+        <button id="newSurveyBtn" class="primary">New Survey</button>
+      </div>
+      <div id="stats" class="stats"></div>
+      <h3>Improvement Priorities</h3>
+      <div id="priorityList" class="priority-list"></div>
+      <h3>Saved Surveys</h3>
+      <div id="surveyList" class="survey-list"></div>
+      <button id="clearData" class="danger">Clear Local Data</button>
+    </section>
+  </main>
+
+  <footer>BTIS v0.5 prototype — local storage only</footer>
+  <script src="app.js"></script>
 </body>
 </html>
