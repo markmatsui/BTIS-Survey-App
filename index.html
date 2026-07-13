@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BTIS Survey v0.7</title>
+  <title>BTIS Survey v0.7.2</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header class="topbar">
     <div>
       <h1>BTIS Survey</h1>
-      <p>Botswana Tourism Improvement System — Version 0.7</p>
+      <p>Botswana Tourism Improvement System — Version 0.7.2</p>
     </div>
     <div class="top-actions">
       <button id="newSurveyBtn" class="secondary">New Survey</button>
@@ -25,7 +25,7 @@
           <span id="screenLabel">Screen 1 of 30</span>
           <span id="progressText">3%</span>
         </div>
-        <div class="progress-track"><div id="progressBar"></div></div>
+        <div class="progress-track"><div id="progressBar"></div></div><div id="sectionProgress" class="section-progress"></div>
       </div>
 
       <form id="surveyForm">
@@ -75,6 +75,10 @@
           <div class="analytics-card">
             <h3>Priority improvement items</h3>
             <div id="priorityItems"></div>
+          </div>
+          <div class="analytics-card">
+            <h3>Nationality summary</h3>
+            <div id="nationalitySummary"></div>
           </div>
         </div>
 

@@ -1,9 +1,10 @@
-const STORAGE_KEY="btis_surveys_v07";
-const DRAFT_KEY="btis_draft_v07";
+const STORAGE_KEY="btis_surveys_v072";
+const DRAFT_KEY="btis_draft_v072";
 let currentScreen=0;
 let adminMode=false;
 let photoData="";
 let recognition=null;
+let guidePrivacySubmitted=false;
 
 const screens=[
 {title:"Welcome",purpose:"Welcome to Botswana. This survey helps improve tourism services through honest traveller feedback.",fields:[
@@ -47,12 +48,12 @@ const screens=[
 {title:"Bathroom and Toilet",purpose:"Evaluate bathroom and toilet facilities.",ratings:["Bathroom cleanliness","Toilet condition","Hot water","Shower quality","Privacy"],na:true},
 {title:"Electricity and Charging",purpose:"Evaluate electricity and charging facilities.",ratings:["Electricity reliability","Charging points","Lighting","Backup power"],na:true},
 {title:"Security",purpose:"Evaluate security measures and your feeling of safety.",ratings:["Property security","Room security","Lighting around property","Staff response to concerns"],na:true},
-{title:"Accessibility",purpose:"Evaluate access for travellers with mobility or other support needs.",ratings:["Step-free access","Pathways","Bathroom accessibility","Staff assistance"],na:true},
+{title:"Accessibility",purpose:"Evaluate access for travellers with mobility or other support needs.",skipQuestion:{name:"accessibilityRelevant",label:"Would you like to evaluate accessibility?",options:["Yes","No"]},ratings:["Step-free access","Pathways","Bathroom accessibility","Staff assistance"],na:true},
 {title:"Staff Service",purpose:"Evaluate staff conduct and service quality.",ratings:["Friendliness","Professionalism","Responsiveness","Communication"],na:true},
-{title:"Breakfast and Food",purpose:"Evaluate breakfast and food service.",ratings:["Food quality","Variety","Cleanliness","Service","Local Botswana food options"],na:true,
+{title:"Breakfast and Food",purpose:"Evaluate breakfast and food service.",skipQuestion:{name:"breakfastAvailable",label:"Was breakfast or food service available?",options:["Yes","No"]},ratings:["Food quality","Variety","Cleanliness","Service","Local Botswana food options"],na:true,
  extra:[{type:"radio",name:"triedTraditionalFood",label:"Did you try traditional Botswana food here?",options:["Yes","No","Not sure","Not applicable"]},
  {type:"textarea",name:"favoriteDish",label:"Which dish did you enjoy most?"}]},
-{title:"Local Culture Experience",purpose:"Evaluate opportunities to experience local culture.",ratings:["Authenticity","Respect for local culture","Opportunities to learn","Community involvement"],na:true},
+{title:"Local Culture Experience",purpose:"Evaluate opportunities to experience local culture.",skipQuestion:{name:"cultureAvailable",label:"Did this stay include any local culture experience?",options:["Yes","No"]},ratings:["Authenticity","Respect for local culture","Opportunities to learn","Community involvement"],na:true},
 {title:"Value for Money",purpose:"Evaluate whether the experience matched the price paid.",ratings:["Room value","Food value","Service value","Overall value"],na:true},
 {title:"Check-out",purpose:"Evaluate the departure process.",ratings:["Speed of check-out","Bill accuracy","Staff helpfulness","Farewell"],na:true},
 {title:"Accommodation Overall Review",purpose:"Give an overall assessment of this accommodation.",ratings:["Overall satisfaction","Would stay again","Would recommend"],na:false,
@@ -135,26 +136,78 @@ function fieldHtml(f){
   return `<div class="field"><label>${f.label}</label><input type="${f.type||"text"}" name="${f.name}" placeholder="${f.placeholder||""}" ${f.readonly?"readonly":""} ${f.min?`min="${f.min}"`:""}${val}></div>`;
 }
 function ratingHtml(items,na,screenIndex){
-  return `<div class="rating-grid">${items.map((item,i)=>`<div class="rating-row"><div class="rating-title">${escapeHtml(item)}</div><div class="rating-options">${[1,2,3,4,5].map(n=>`<label><input type="radio" name="s${screenIndex}_r${i}" value="${n}">${n}</label>`).join("")}${na?`<label><input type="radio" name="s${screenIndex}_r${i}" value="NA">N/A</label>`:""}</div><div class="conditional"><textarea name="s${screenIndex}_c${i}" placeholder="Reason or comment (especially for ratings of 1 or 2)"></textarea></div></div>`).join("")}</div>`;
+  return `<div class="rating-grid">${items.map((item,i)=>{
+    const reasonId=`reason_${screenIndex}_${i}`;
+    return `<div class="rating-row">
+      <div class="rating-head">
+        <div class="rating-title">${escapeHtml(item)}</div>
+        <button type="button" class="why-btn secondary" data-target="${reasonId}">Why?</button>
+      </div>
+      <div class="rating-options">${[1,2,3,4,5].map(n=>`<label><input type="radio" name="s${screenIndex}_r${i}" value="${n}">${n}</label>`).join("")}${na?`<label><input type="radio" name="s${screenIndex}_r${i}" value="NA">N/A</label>`:""}</div>
+      <div id="${reasonId}" class="reason-box hidden"><textarea name="s${screenIndex}_c${i}" placeholder="Please explain your rating. Ratings of 1 or 2 require a reason."></textarea></div>
+    </div>`;
+  }).join("")}</div>`;
 }
+
+function sectionInfo(screenIndex){
+  if(screenIndex<=6)return {name:"Traveller & Tour Setup",start:0,end:6};
+  if(screenIndex<=19)return {name:"Accommodation Review",start:7,end:19};
+  if(screenIndex<=26)return {name:"Trip & Guide Review",start:20,end:26};
+  return {name:"Tourism Market Research (Draft)",start:27,end:29};
+}
+function currentSectionText(){
+  const s=sectionInfo(currentScreen);
+  return `${s.name} — Step ${currentScreen-s.start+1} of ${s.end-s.start+1}`;
+}
+function applySkipState(){
+  const s=screens[currentScreen];
+  if(!s.skipQuestion)return;
+  const selected=document.querySelector(`input[name="${s.skipQuestion.name}"]:checked`)?.value;
+  document.querySelector(".skippable-block")?.classList.toggle("hidden",selected==="No");
+}
+function bindWhyButtons(){
+  document.querySelectorAll(".why-btn").forEach(btn=>{
+    btn.onclick=()=>document.getElementById(btn.dataset.target)?.classList.toggle("hidden");
+  });
+  document.querySelectorAll(".rating-options input").forEach(input=>{
+    input.onchange=()=>{
+      const box=input.closest(".rating-row")?.querySelector(".reason-box");
+      if(!box)return;
+      const low=input.value==="1"||input.value==="2";
+      box.classList.toggle("hidden",!low);
+      if(low)box.querySelector("textarea")?.focus();
+    };
+  });
+}
+
 function renderScreen(){
   const s=screens[currentScreen];
   $("screenLabel").textContent=`Screen ${currentScreen+1} of ${screens.length}`;
   const pct=Math.round(((currentScreen+1)/screens.length)*100);
   $("progressText").textContent=pct+"%";
   $("progressBar").style.width=pct+"%";
+  $("sectionProgress").textContent=currentSectionText();
   let html=`<div class="screen-card"><h2>${escapeHtml(s.title)}</h2>`;
   if(s.privacy)html+=`<div class="privacy-banner"><strong>Privacy Mode</strong><p>Please complete this section yourself. Your guide cannot see or change your answers.</p></div>`;
   if(s.draft)html+=`<div class="draft-banner"><strong>Discussion Draft</strong><p>This screen may change significantly before the first official release.</p></div>`;
   html+=`<div class="purpose">${escapeHtml(s.purpose)}</div>`;
   if(s.optional)html+=`<p class="inline-note">This section is optional. You may continue without answering.</p>`;
+  if(s.skipQuestion){
+    html+=fieldHtml({type:"radio",name:s.skipQuestion.name,label:s.skipQuestion.label,options:s.skipQuestion.options});
+    html+=`<div class="skippable-block">`;
+  }
   if(s.ratings)html+=ratingHtml(s.ratings,s.na,currentScreen);
   (s.fields||[]).forEach(f=>html+=fieldHtml(f));
   (s.extra||[]).forEach(f=>html+=fieldHtml(f));
+  if(s.skipQuestion)html+=`</div>`;
   html+="</div>";
   $("screenContainer").innerHTML=html;
   restoreCurrentScreen();
   bindDynamicControls();
+  bindWhyButtons();
+  applySkipState();
+  const skipName=s.skipQuestion?.name;
+  if(skipName)document.querySelectorAll(`input[name="${skipName}"]`).forEach(el=>el.onchange=applySkipState);
   $("prevBtn").disabled=currentScreen===0;
   $("nextBtn").classList.toggle("hidden",currentScreen===screens.length-1);
   $("submitBtn").classList.toggle("hidden",currentScreen!==screens.length-1);
@@ -235,8 +288,34 @@ function restoreCurrentScreen(){
     });
   });
 }
-function next(){saveDraftSilent(); if(currentScreen<screens.length-1){currentScreen++;renderScreen();window.scrollTo(0,0)}}
-function prev(){saveDraftSilent(); if(currentScreen>0){currentScreen--;renderScreen();window.scrollTo(0,0)}}
+function validateLowRatings(){
+  const lows=[...document.querySelectorAll('.rating-options input:checked')].filter(i=>i.value==="1"||i.value==="2");
+  for(const input of lows){
+    const box=input.closest(".rating-row")?.querySelector(".reason-box");
+    const ta=box?.querySelector("textarea");
+    if(ta&&!ta.value.trim()){
+      box.classList.remove("hidden");
+      ta.focus();
+      alert("Please explain ratings of 1 or 2.");
+      return false;
+    }
+  }
+  return true;
+}
+function next(){
+  if(!validateLowRatings())return;
+  if(currentScreen===21)guidePrivacySubmitted=true;
+  saveDraftSilent();
+  if(currentScreen<screens.length-1){currentScreen++;renderScreen();window.scrollTo(0,0)}
+}
+function prev(){
+  if(guidePrivacySubmitted&&currentScreen>21){
+    alert("Guide Evaluation is locked for privacy and cannot be reopened.");
+    return;
+  }
+  saveDraftSilent();
+  if(currentScreen>0){currentScreen--;renderScreen();window.scrollTo(0,0)}
+}
 function saveDraftSilent(){
   const existing=JSON.parse(localStorage.getItem(DRAFT_KEY)||"{}");
   localStorage.setItem(DRAFT_KEY,JSON.stringify({...existing,...collectForm(),currentScreen}));
@@ -246,7 +325,7 @@ function overallScore(d){
   return nums.length?nums.reduce((a,b)=>a+b,0)/nums.length:0;
 }
 function submitSurvey(e){
-  e.preventDefault(); saveDraftSilent();
+  e.preventDefault(); if(!validateLowRatings())return; saveDraftSilent();
   const d=JSON.parse(localStorage.getItem(DRAFT_KEY)||"{}");
   d.id=crypto.randomUUID?crypto.randomUUID():String(Date.now());
   d.createdAt=new Date().toISOString();
@@ -287,6 +366,8 @@ function renderDashboard(){
   $("statLowItems").textContent=low.length;
   $("itemAverages").innerHTML=itemAvgs.length?itemAvgs.map(x=>`<div class="bar-row"><span>${ratingLabel(x.key)}</span><div class="bar-track"><div class="bar-fill" style="width:${(x.score/5)*100}%"></div></div><strong>${x.score.toFixed(1)}</strong></div>`).join(""):"<p class='small'>No rating data.</p>";
   $("priorityItems").innerHTML=low.length?low.map(x=>`<div class="priority"><strong>${ratingLabel(x.key)}</strong> — average ${x.score.toFixed(1)}</div>`).join(""):"<p class='small'>No priority item detected.</p>";
+  const nat={};data.forEach(x=>{const k=x.nationality||"Unknown";nat[k]=(nat[k]||0)+1});
+  $("nationalitySummary").innerHTML=Object.entries(nat).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="summary-row"><span>${escapeHtml(k)}</span><strong>${v}</strong></div>`).join("")||"<p class='small'>No nationality data.</p>";
   $("surveyTable").innerHTML=data.map(x=>`<tr><td>${escapeHtml((x.createdAt||"").slice(0,10))}</td><td>${escapeHtml(x.travellerName||"-")}</td><td>${escapeHtml(x.nationality||"-")}</td><td>${escapeHtml(x.guideName||"-")}</td><td>${escapeHtml(x.accommodation||"-")}</td><td>${Number(x.overallAverage||0).toFixed(1)}</td><td class="admin-only ${adminMode?"":"hidden"}"><button class="danger" onclick="deleteOne('${x.id}')">Delete</button></td></tr>`).join("")||`<tr><td colspan="7">No survey data.</td></tr>`;
   document.querySelectorAll(".admin-only").forEach(el=>el.classList.toggle("hidden",!adminMode));
 }
@@ -313,7 +394,7 @@ $("nextBtn").onclick=next;
 $("prevBtn").onclick=prev;
 $("saveDraftBtn").onclick=saveDraft;
 $("surveyForm").onsubmit=submitSurvey;
-$("newSurveyBtn").onclick=()=>{showSurvey();currentScreen=0;renderScreen()};
+$("newSurveyBtn").onclick=()=>{showSurvey();currentScreen=0;guidePrivacySubmitted=false;renderScreen()};
 $("dashboardBtn").onclick=showDashboard;
 $("clearFilters").onclick=clearFilters;
 $("exportCsv").onclick=exportCsv;

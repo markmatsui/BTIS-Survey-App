@@ -8,3 +8,10 @@
 .bar-track{height:9px;background:#e2e7e3;border-radius:999px;overflow:hidden}.bar-fill{height:100%;background:#3b7b57}
 .priority{padding:9px;border-left:3px solid #b45b3e;background:#fff5ef;margin:8px 0}
 @media(max-width:700px){.analytics-grid{grid-template-columns:1fr}.bar-row{grid-template-columns:1fr 2fr 38px}}
+
+.section-progress{margin-top:7px;font-size:13px;color:#56645a;font-weight:700}
+.rating-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.why-btn{padding:6px 10px;font-size:13px}
+.reason-box{border-left:3px solid #9eb6a4;padding-left:12px;margin-top:12px}
+.reason-box textarea{width:100%;min-height:85px;padding:10px;border:1px solid #b9c4bb;border-radius:8px}
+.summary-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e3e8e4}
