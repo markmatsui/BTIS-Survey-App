@@ -1,50 +1,39 @@
-# BTIS Survey App — Version 0.6 Prototype
+# BTIS Survey App — Version 0.7 Draft
 
-This is a browser-based prototype for the Botswana Tourism Improvement System (BTIS).
+This browser-based prototype updates the Botswana Tourism Improvement System (BTIS).
 
-## What v0.6 includes
+## Status
 
-- Full survey input flow
-- QR / lodge code input
-- Guest profile
-- 12 improvement review ratings
-- Guest comments
-- Voice input support where the browser allows it
-- Photo attachment preview
-- Guide's private note
-- Accommodation response field
-- Optional follow-up contact
-- Local browser storage
-- Survey list
-- Dashboard with total count and average score
-- Item-by-item average scores
-- Priority improvement item detection
-- Search and filters
-- CSV export
-- JSON export
-- Admin Mode with delete controls
-- Sample data loader
+- Screens 1–27: nearly complete working draft
+- Screens 28–30: clearly marked **Discussion Draft**
+- Screens 28–30 may change significantly before the first official release
+
+## Main additions
+
+- 30-screen guided survey
+- Progress bar
+- Save Draft / resume using browser storage
+- Smart optional sections and "Not Applicable" options
+- Narrower age groups
+- One flexible Name / Nickname field
+- Guide evaluation Privacy Mode
+- Time-management standard:
+  - Arrive at least 10 minutes early
+  - Late arrival is unacceptable
+- Traditional Botswana food questions
+- Overall trip review
+- Optional tourism market research
+- Dashboard
+- CSV and JSON export
+- Admin delete controls
 
 ## Important limitation
 
-This version does not upload data to a real server. Data is stored only in the browser's local storage.
-
-If you open the app on another phone or computer, the data will not automatically appear there.
-
-## Test lodge codes
-
-- `RASESA`
-- `BTIS-RASESA`
-
-You can also paste JSON like:
-
-```json
-{"accommodation":"Rasesa Lodge","location":"Rasesa","guide":"George"}
-```
+This version does not use a real server. Survey and draft data are stored only in the current browser.
 
 ## Files to upload to GitHub
 
-Upload these four files to the repository root:
+Replace the four files in the repository root:
 
 1. `index.html`
 2. `style.css`
@@ -53,10 +42,4 @@ Upload these four files to the repository root:
 
 ## Suggested commit message
 
-`Implement BTIS Version 0.6 dashboard and export tools`
-
-## Notes for field testing
-
-Use this version to test whether the questions, ratings, comments, and dashboard are useful for real accommodation improvement work.
-
-Do not treat the scores as public hotel ratings. They are internal improvement signals.
+`Update BTIS to v0.7 with Screens 1-27 and market research draft`

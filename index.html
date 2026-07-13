@@ -1,168 +1,96 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>BTIS Survey v0.6</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BTIS Survey v0.7</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header class="app-header">
+  <header class="topbar">
     <div>
-      <div class="eyebrow">Botswana Tourism Improvement System</div>
       <h1>BTIS Survey</h1>
-      <p class="version">Version 0.6 — Survey + Dashboard</p>
+      <p>Botswana Tourism Improvement System — Version 0.7</p>
     </div>
-    <div class="header-actions">
-      <button id="surveyBtn" class="secondary">New Survey</button>
-      <button id="dashboardBtn" class="primary">Dashboard</button>
+    <div class="top-actions">
+      <button id="newSurveyBtn" class="secondary">New Survey</button>
+      <button id="dashboardBtn" class="secondary">Dashboard</button>
     </div>
   </header>
 
   <main>
-    <section id="surveyView" class="card">
-      <div class="stepper" id="stepper"></div>
+    <section id="surveyView">
+      <div class="progress-wrap">
+        <div class="progress-meta">
+          <span id="screenLabel">Screen 1 of 30</span>
+          <span id="progressText">3%</span>
+        </div>
+        <div class="progress-track"><div id="progressBar"></div></div>
+      </div>
+
       <form id="surveyForm">
-        <section class="step active" data-step="0">
-          <h2>New Survey</h2>
-          <p class="hint">Create one improvement report for one accommodation stay.</p>
-          <label>BTIS No.<input name="btisNo" id="btisNo" placeholder="Auto or manual" /></label>
-          <div class="two-col">
-            <label>Accommodation<input name="accommodation" id="accommodation" required /></label>
-            <label>Location<input name="location" id="location" /></label>
-          </div>
-          <div class="two-col">
-            <label>Guide<input name="guide" id="guide" /></label>
-            <label>Survey Date<input name="surveyDate" id="surveyDate" type="date" /></label>
-          </div>
-          <label>QR / Lodge Code<input id="qrText" placeholder="RASESA or BTIS-RASESA" /></label>
-          <button type="button" id="applyQr" class="secondary full">Apply QR / Lodge Code</button>
-        </section>
-
-        <section class="step" data-step="1">
-          <h2>Guest Profile</h2>
-          <div class="two-col">
-            <label>Nationality<input name="nationality" /></label>
-            <label>Age Group<select name="ageGroup"><option></option><option>&lt;20</option><option>20-39</option><option>40-59</option><option>60+</option></select></label>
-          </div>
-          <div class="two-col">
-            <label>Travel Type<select name="travelType"><option></option><option>Solo</option><option>Couple</option><option>Family</option><option>Friends</option><option>Group</option></select></label>
-            <label>Purpose<select name="purpose"><option></option><option>Holiday</option><option>Business</option><option>Culture</option><option>Other</option></select></label>
-          </div>
-          <div class="two-col">
-            <label>Check-in<input name="checkIn" type="date" /></label>
-            <label>Check-out<input name="checkOut" type="date" /></label>
-          </div>
-          <div class="two-col">
-            <label>Nights<input name="nights" type="number" min="1" /></label>
-            <label>Guests<input name="guests" type="number" min="1" /></label>
-          </div>
-        </section>
-
-        <section class="step" data-step="2">
-          <h2>Improvement Review</h2>
-          <p class="hint">1 = Poor / 5 = Excellent. BTIS is an improvement system, not a blame system.</p>
-          <div id="ratings" class="ratings-grid"></div>
-        </section>
-
-        <section class="step" data-step="3">
-          <h2>Guest Comments</h2>
-          <label>Anything that could be improved?<textarea name="improve" rows="4"></textarea></label>
-          <label>What should we continue doing well?<textarea name="continueWell" rows="4"></textarea></label>
-          <label>Voice comment note / transcript<textarea name="voiceNote" id="voiceNote" rows="3" placeholder="Type summary here, or use voice input if supported."></textarea></label>
-          <div class="button-row">
-            <button type="button" id="startVoice" class="secondary">Start Voice Input</button>
-            <button type="button" id="stopVoice" class="secondary" disabled>Stop</button>
-          </div>
-          <p id="voiceStatus" class="hint"></p>
-        </section>
-
-        <section class="step" data-step="4">
-          <h2>Photo / Evidence</h2>
-          <p class="hint">Attach one photo if it helps explain the improvement point.</p>
-          <input id="photoInput" name="photo" type="file" accept="image/*" capture="environment" />
-          <img id="photoPreview" alt="Photo preview" class="preview hidden" />
-          <label>Photo note<textarea name="photoNote" rows="3"></textarea></label>
-        </section>
-
-        <section class="step" data-step="5">
-          <h2>Guide's Note</h2>
-          <label>Private note for BTIS use<textarea name="guideNote" rows="5"></textarea></label>
-          <label>Accommodation response<textarea name="accommodationResponse" rows="4"></textarea></label>
-        </section>
-
-        <section class="step" data-step="6">
-          <h2>Optional Follow-up Contact</h2>
-          <p class="hint">Optional. Do not share this with accommodation without permission.</p>
-          <div class="two-col">
-            <label>Name / Nickname<input name="contactName" /></label>
-            <label>Email / WhatsApp<input name="contact" /></label>
-          </div>
-          <label class="checkbox"><input name="mayContact" type="checkbox" /> May we contact you?</label>
-        </section>
-
-        <section class="step" data-step="7">
-          <h2>Submit</h2>
-          <div id="summaryBox" class="summary"></div>
-          <button type="submit" class="primary full">Save Survey</button>
-        </section>
+        <div id="screenContainer"></div>
 
         <div class="nav-row">
-          <button type="button" id="prevBtn" class="secondary">Back</button>
-          <button type="button" id="nextBtn" class="primary">Next</button>
+          <button type="button" id="prevBtn" class="secondary">← Previous</button>
+          <button type="button" id="saveDraftBtn" class="secondary">Save Draft</button>
+          <button type="button" id="nextBtn">Next →</button>
+          <button type="submit" id="submitBtn" class="hidden">Submit Survey</button>
         </div>
       </form>
     </section>
 
-    <section id="dashboardView" class="card hidden">
-      <div class="dash-head">
-        <div>
-          <h2>BTIS Dashboard</h2>
-          <p class="hint">Stored locally in this browser.</p>
+    <section id="dashboardView" class="hidden">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>BTIS Dashboard</h2>
+            <p>Data is stored only in this browser.</p>
+          </div>
+          <button id="adminToggle" class="secondary">Admin Mode</button>
         </div>
-        <button id="adminToggle" class="secondary">Admin Mode</button>
-      </div>
 
-      <div class="filters">
-        <label>Accommodation<input id="filterAccommodation" placeholder="Search lodge" /></label>
-        <label>Guide<input id="filterGuide" placeholder="Search guide" /></label>
-        <label>From<input id="filterFrom" type="date" /></label>
-        <label>To<input id="filterTo" type="date" /></label>
-        <label>Max Average<select id="filterMaxAvg"><option value="">All</option><option value="2">2 or lower</option><option value="3">3 or lower</option><option value="4">4 or lower</option></select></label>
-        <button id="clearFilters" class="secondary">Clear</button>
-      </div>
+        <div class="filters">
+          <input id="filterGuide" placeholder="Guide" />
+          <input id="filterAccommodation" placeholder="Accommodation" />
+          <input id="filterNationality" placeholder="Nationality" />
+          <button id="clearFilters" class="secondary">Clear</button>
+        </div>
 
-      <div class="stats-grid">
-        <div class="stat"><span>Total Surveys</span><strong id="statCount">0</strong></div>
-        <div class="stat"><span>Average Score</span><strong id="statAverage">-</strong></div>
-        <div class="stat"><span>Low Score Items</span><strong id="statLowItems">-</strong></div>
-        <div class="stat"><span>Latest Survey</span><strong id="statLatest">-</strong></div>
-      </div>
+        <div class="stats">
+          <div><strong id="statCount">0</strong><span>Total Surveys</span></div>
+          <div><strong id="statAverage">-</strong><span>Average Score</span></div>
+          <div><strong id="statLatest">-</strong><span>Latest Survey</span></div>
+        </div>
 
-      <h3>Item Average</h3>
-      <div id="itemAverages" class="bar-list"></div>
+        <div class="export-row">
+          <button id="exportCsv" class="secondary">Export CSV</button>
+          <button id="exportJson" class="secondary">Export JSON</button>
+          <button id="deleteAll" class="danger hidden admin-only">Delete All Data</button>
+        </div>
 
-      <h3>Priority Improvement Items</h3>
-      <div id="priorityItems" class="priority-list"></div>
-
-      <div class="button-row export-row">
-        <button id="exportCsv" class="primary">Export CSV</button>
-        <button id="exportJson" class="secondary">Export JSON</button>
-        <button id="loadSample" class="secondary">Load Sample Data</button>
-        <button id="deleteAll" class="danger hidden admin-only">Delete All Data</button>
-      </div>
-
-      <h3>Survey List</h3>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Date</th><th>BTIS No.</th><th>Accommodation</th><th>Guide</th><th>Average</th><th>Lowest Item</th><th class="admin-only hidden">Action</th></tr></thead>
-          <tbody id="surveyTable"></tbody>
-        </table>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th><th>Traveller</th><th>Nationality</th><th>Guide</th>
+                <th>Accommodation</th><th>Overall</th><th class="admin-only hidden">Action</th>
+              </tr>
+            </thead>
+            <tbody id="surveyTable"></tbody>
+          </table>
+        </div>
       </div>
     </section>
   </main>
 
-  <footer>BTIS v0.6 Prototype — Local browser storage only</footer>
+  <template id="privacyTemplate">
+    <div class="privacy-banner">
+      <strong>Privacy Mode</strong>
+      <p>Please complete this section yourself. Your guide cannot see or change your answers.</p>
+    </div>
+  </template>
+
   <script src="app.js"></script>
 </body>
 </html>

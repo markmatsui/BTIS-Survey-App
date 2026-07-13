@@ -1,33 +1,242 @@
-const STORAGE_KEY = "btis_surveys_v06";
-const ratingItems = ["Cleanliness","Toilet / Bathroom","Safety / Security","Staff Friendliness","Check-in / Booking","Room Comfort","Food / Breakfast","Local Culture Experience","Accessibility","Electricity / Charging","Value for Money","Overall Satisfaction"];
-let currentStep = 0;let photoData = "";let recognition = null;let adminMode = false;
-const $ = id => document.getElementById(id);
-const today = new Date().toISOString().slice(0,10);
+const STORAGE_KEY="btis_surveys_v07";
+const DRAFT_KEY="btis_draft_v07";
+let currentScreen=0;
+let adminMode=false;
+
+const screens=[
+{title:"Welcome",purpose:"Welcome to Botswana. This survey helps improve tourism services through honest traveller feedback.",fields:[
+  {type:"html",html:"<div class='section-note'><strong>Dumelang! Welcome to Botswana.</strong><br>This survey can be completed gradually during quiet moments of the journey. You may answer only the parts that apply to you.</div>"},
+  {type:"text",name:"travellerName",label:"Name / Nickname",placeholder:"Use either your name or a nickname"},
+  {type:"select",name:"nationality",label:"Nationality",options:["","Botswana","Japan","South Africa","Zimbabwe","Zambia","United Kingdom","United States","Germany","France","Other"]}
+]},
+{title:"Traveller Profile",purpose:"Create a simple traveller profile for this tour.",fields:[
+  {type:"select",name:"ageGroup",label:"Age Group",options:["","Under 20","20–29","30–39","40–49","50–59","60–69","70 or above"]},
+  {type:"select",name:"gender",label:"Gender (Optional)",options:["","Female","Male","Other","Prefer not to say"]},
+  {type:"text",name:"contact",label:"Email / WhatsApp (Optional)",placeholder:"Optional follow-up contact"},
+  {type:"checkbox",name:"mayContact",label:"BTIS may contact me about my feedback."}
+]},
+{title:"Traveller Account",purpose:"A temporary Traveller ID will connect your answers during this trip.",fields:[
+  {type:"html",html:"<div class='section-note'>Your Traveller ID is created automatically. It does not need to be shown publicly.</div>"},
+  {type:"text",name:"travellerId",label:"Traveller ID",readonly:true}
+]},
+{title:"New Tour",purpose:"Create a record for this journey.",fields:[
+  {type:"text",name:"tourName",label:"Tour Name",placeholder:"Example: Northern Botswana Cultural Tour"},
+  {type:"date",name:"tourStart",label:"Start Date"},
+  {type:"date",name:"tourEnd",label:"End Date"}
+]},
+{title:"Travel Type",purpose:"Tell us how you are travelling.",fields:[
+  {type:"radio",name:"travelType",label:"Travel Type",options:["Solo","Couple","Family","Friends","Group","Business partners","Other"]},
+  {type:"radio",name:"visitNumber",label:"Is this your first visit to Botswana?",options:["Yes","No"]}
+]},
+{title:"Guide Information",purpose:"Select the guide responsible for this part of the journey.",fields:[
+  {type:"text",name:"guideName",label:"Guide",placeholder:"Select or enter guide name"},
+  {type:"text",name:"guideSection",label:"Guide's responsible section",placeholder:"Example: 2 days / Gaborone to Maun"}
+]},
+{title:"Accommodation Details",purpose:"Create one review for one accommodation stay.",fields:[
+  {type:"text",name:"accommodation",label:"Accommodation",placeholder:"Example: Rasesa Lodge"},
+  {type:"text",name:"location",label:"Location",placeholder:"Town, village or area"},
+  {type:"date",name:"checkIn",label:"Check-in Date"},
+  {type:"date",name:"checkOut",label:"Check-out Date"}
+]},
+{title:"Reservation and Arrival",purpose:"Evaluate the reservation and arrival experience.",ratings:["Reservation accuracy","Pre-arrival communication","Ease of finding the property","Welcome on arrival"],na:true},
+{title:"Check-in",purpose:"Evaluate the check-in process.",ratings:["Speed of check-in","Clarity of information","Staff helpfulness","Accuracy of room allocation"],na:true},
+{title:"Room and Comfort",purpose:"Evaluate the room and basic comfort.",ratings:["Room cleanliness","Bed comfort","Room condition","Noise level","Temperature / air conditioning"],na:true},
+{title:"Bathroom and Toilet",purpose:"Evaluate bathroom and toilet facilities.",ratings:["Bathroom cleanliness","Toilet condition","Hot water","Shower quality","Privacy"],na:true},
+{title:"Electricity and Charging",purpose:"Evaluate electricity and charging facilities.",ratings:["Electricity reliability","Charging points","Lighting","Backup power"],na:true},
+{title:"Security",purpose:"Evaluate security measures and your feeling of safety.",ratings:["Property security","Room security","Lighting around property","Staff response to concerns"],na:true},
+{title:"Accessibility",purpose:"Evaluate access for travellers with mobility or other support needs.",ratings:["Step-free access","Pathways","Bathroom accessibility","Staff assistance"],na:true},
+{title:"Staff Service",purpose:"Evaluate staff conduct and service quality.",ratings:["Friendliness","Professionalism","Responsiveness","Communication"],na:true},
+{title:"Breakfast and Food",purpose:"Evaluate breakfast and food service.",ratings:["Food quality","Variety","Cleanliness","Service","Local Botswana food options"],na:true,
+ extra:[{type:"radio",name:"triedTraditionalFood",label:"Did you try traditional Botswana food here?",options:["Yes","No","Not sure","Not applicable"]},
+ {type:"textarea",name:"favoriteDish",label:"Which dish did you enjoy most?"}]},
+{title:"Local Culture Experience",purpose:"Evaluate opportunities to experience local culture.",ratings:["Authenticity","Respect for local culture","Opportunities to learn","Community involvement"],na:true},
+{title:"Value for Money",purpose:"Evaluate whether the experience matched the price paid.",ratings:["Room value","Food value","Service value","Overall value"],na:true},
+{title:"Check-out",purpose:"Evaluate the departure process.",ratings:["Speed of check-out","Bill accuracy","Staff helpfulness","Farewell"],na:true},
+{title:"Accommodation Overall Review",purpose:"Give an overall assessment of this accommodation.",ratings:["Overall satisfaction","Would stay again","Would recommend"],na:false,
+ extra:[{type:"textarea",name:"accommodationBest",label:"What should this accommodation continue doing well?"},
+ {type:"textarea",name:"accommodationImprove",label:"What should be improved?"}]},
+{title:"Overall Trip Review",purpose:"Please review your overall experience in Botswana.",ratings:["Overall satisfaction","Value for money","Would visit Botswana again","Would recommend Botswana"],na:false,
+ extra:[{type:"textarea",name:"tripMemorable",label:"What was the most memorable part of your trip?"},
+ {type:"textarea",name:"tripImprove",label:"What is the one thing that should be improved most?"}]},
+{title:"Guide Evaluation",purpose:"Please evaluate the guide who accompanied you during this part of your journey.",privacy:true,
+ ratings:["Friendliness","Communication skills","Knowledge of destinations","Clarity of explanations","Time management (Arrive at least 10 minutes early. Late arrival is unacceptable.)","Safety awareness","Problem-solving ability","Flexibility","Understanding of local culture","Professionalism","Overall satisfaction"],na:false,
+ extra:[{type:"textarea",name:"guideBest",label:"What did your guide do particularly well?"},
+ {type:"textarea",name:"guideImprove",label:"What could be improved?"},
+ {type:"radio",name:"guideAgain",label:"Would you request this guide again?",options:["Definitely Yes","Probably Yes","Not Sure","Probably No","Definitely No"]}]},
+{title:"Best of Your Botswana Journey",purpose:"Tell us what impressed you most.",fields:[
+  {type:"text",name:"bestAccommodation",label:"Best accommodation"},
+  {type:"text",name:"bestFood",label:"Best restaurant or food experience"},
+  {type:"text",name:"bestAttraction",label:"Most memorable attraction or destination"},
+  {type:"text",name:"bestExperience",label:"Best activity or experience"},
+  {type:"textarea",name:"bestReason",label:"Why did you choose these?"}
+]},
+{title:"What Needs the Most Improvement?",purpose:"Constructive feedback helps Botswana improve its tourism industry.",fields:[
+  {type:"textarea",name:"needsImprovement",label:"Which accommodation, restaurant, attraction, guide or service needs the most improvement?"},
+  {type:"textarea",name:"improvementSuggestion",label:"Please explain your suggestion."}
+]},
+{title:"Challenges During Your Trip",purpose:"Tell us about any difficulties you experienced.",fields:[
+  {type:"checkboxGroup",name:"tripChallenges",label:"Did you experience problems with:",options:["Transportation","Mobile phone or Internet","Payment or cash","Language or communication","Safety or security","Toilets or public facilities","Other","None"]},
+  {type:"textarea",name:"challengeDetails",label:"Please describe any problems and how they could be improved."}
+]},
+{title:"What Would You Have Liked to Experience?",purpose:"Your ideas can help create better tourism products.",fields:[
+  {type:"textarea",name:"nextPlace",label:"What place would you like to visit next time?"},
+  {type:"textarea",name:"wantedFood",label:"What local food did you hope to try?"},
+  {type:"textarea",name:"wantedCulture",label:"What cultural experience did you hope to have?"},
+  {type:"textarea",name:"wantedActivity",label:"What activity or tour would you like to see offered?"},
+  {type:"textarea",name:"wantedProduct",label:"Was there anything you wanted to buy but could not find?"}
+]},
+{title:"About Your Visit",purpose:"This information is used only for statistical analysis.",fields:[
+  {type:"number",name:"groupSize",label:"Number of travellers in your group",min:1},
+  {type:"number",name:"stayLength",label:"Length of stay in Botswana (days)",min:1},
+  {type:"text",name:"mainPurpose",label:"Main purpose of your visit"},
+  {type:"text",name:"howFoundBTIS",label:"How did you learn about BTIS?"}
+]},
+{title:"Tourism Market Research — Before Travel",purpose:"Discussion Draft. This optional section may change significantly before official release.",draft:true,optional:true,fields:[
+  {type:"radio",name:"tripPlanning",label:"How did you plan this trip?",options:["I planned everything myself","I used a travel agency","I booked through an online travel platform","A guide arranged most of the trip","A friend or family member planned it","Other"]},
+  {type:"textarea",name:"beforeImage",label:"Before coming to Botswana, what image or expectations did you have?"},
+  {type:"textarea",name:"imageDifference",label:"How was the reality different from what you expected?"}
+]},
+{title:"Tourism Market Research — Missing Opportunities",purpose:"Discussion Draft. This optional section is intended to identify unmet traveller demand.",draft:true,optional:true,fields:[
+  {type:"textarea",name:"missedPlace",label:"Which place did you not visit but would like to visit next time?"},
+  {type:"textarea",name:"missedFood",label:"What food did you want to try but could not?"},
+  {type:"textarea",name:"missedExperience",label:"What experience did you expect but were unable to have?"},
+  {type:"textarea",name:"missedProduct",label:"What local product or souvenir did you want but could not find?"}
+]},
+{title:"Thank You / Submit",purpose:"Discussion Draft. The final relationship between BTIS Evaluation and optional Tourism Market Research is still under review.",draft:true,fields:[
+  {type:"html",html:"<div class='section-note'><strong>Thank you for helping improve tourism in Botswana.</strong><br>Your responses will be stored as BTIS improvement data. Personal contact details are optional.</div>"},
+  {type:"checkbox",name:"confirmSubmit",label:"I am ready to submit this survey."}
+]}
+];
+
+function $(id){return document.getElementById(id)}
 function load(){return JSON.parse(localStorage.getItem(STORAGE_KEY)||"[]")}
 function save(data){localStorage.setItem(STORAGE_KEY,JSON.stringify(data))}
-function avg(arr){const nums=arr.map(Number).filter(n=>n>0);return nums.length?nums.reduce((a,b)=>a+b,0)/nums.length:0}
-function init(){ $('surveyDate').value=today; $('btisNo').placeholder=`BTIS-${today.replaceAll('-','')}-001`; buildStepper(); buildRatings(); showStep(0); bind(); renderDashboard();}
-function buildStepper(){ $('stepper').innerHTML = Array.from({length:8},(_,i)=>`<div class="dot ${i===0?'active':''}"></div>`).join('')}
-function buildRatings(){ $('ratings').innerHTML = ratingItems.map((item,i)=>`<div class="rating-card"><strong>${i+1}. ${item}</strong><div class="rating-options">${[1,2,3,4,5].map(n=>`<label><input type="radio" name="rating_${i}" value="${n}"> ${n}</label>`).join('')}</div></div>`).join('')}
-function showStep(n){currentStep=Math.max(0,Math.min(7,n));document.querySelectorAll('.step').forEach((s,i)=>s.classList.toggle('active',i===currentStep));document.querySelectorAll('.dot').forEach((d,i)=>d.classList.toggle('active',i<=currentStep));$('prevBtn').disabled=currentStep===0;$('nextBtn').classList.toggle('hidden',currentStep===7);if(currentStep===7) buildSummary()}
-function bind(){ $('nextBtn').onclick=()=>showStep(currentStep+1);$('prevBtn').onclick=()=>showStep(currentStep-1);$('surveyBtn').onclick=()=>toggleView('survey');$('dashboardBtn').onclick=()=>{toggleView('dash');renderDashboard()};$('applyQr').onclick=applyQr;$('surveyForm').onsubmit=submitSurvey;$('photoInput').onchange=readPhoto;$('startVoice').onclick=startVoice;$('stopVoice').onclick=stopVoice;['filterAccommodation','filterGuide','filterFrom','filterTo','filterMaxAvg'].forEach(id=>$(id).oninput=renderDashboard);$('clearFilters').onclick=clearFilters;$('exportCsv').onclick=exportCsv;$('exportJson').onclick=exportJson;$('loadSample').onclick=loadSample;$('deleteAll').onclick=deleteAll;$('adminToggle').onclick=toggleAdmin}
-function toggleView(view){$('surveyView').classList.toggle('hidden',view!=='survey');$('dashboardView').classList.toggle('hidden',view!=='dash')}
-function applyQr(){const v=$('qrText').value.trim(); if(!v)return; try{const o=JSON.parse(v); if(o.accommodation)$('accommodation').value=o.accommodation; if(o.location)$('location').value=o.location; if(o.guide)$('guide').value=o.guide; return;}catch(e){} if(v.toUpperCase().includes('RASESA')){$('accommodation').value='Rasesa Lodge';$('location').value='Rasesa';}}
-function readPhoto(e){const file=e.target.files[0]; if(!file)return; const reader=new FileReader(); reader.onload=()=>{photoData=reader.result;$('photoPreview').src=photoData;$('photoPreview').classList.remove('hidden')}; reader.readAsDataURL(file)}
-function startVoice(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR){$('voiceStatus').textContent='Voice input is not supported by this browser.';return} recognition=new SR();recognition.lang='en-US';recognition.continuous=true;recognition.onresult=e=>{let t='';for(let i=e.resultIndex;i<e.results.length;i++)t+=e.results[i][0].transcript+' ';$('voiceNote').value += t};recognition.start();$('startVoice').disabled=true;$('stopVoice').disabled=false;$('voiceStatus').textContent='Listening...'}
-function stopVoice(){if(recognition)recognition.stop();$('startVoice').disabled=false;$('stopVoice').disabled=true;$('voiceStatus').textContent='Stopped.'}
-function getFormData(){const fd=new FormData($('surveyForm')); const ratings=ratingItems.map((_,i)=>Number(fd.get(`rating_${i}`)||0)); return {id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),createdAt:new Date().toISOString(),btisNo:fd.get('btisNo')||`BTIS-${Date.now()}`,accommodation:fd.get('accommodation'),location:fd.get('location'),guide:fd.get('guide'),surveyDate:fd.get('surveyDate')||today,nationality:fd.get('nationality'),ageGroup:fd.get('ageGroup'),travelType:fd.get('travelType'),purpose:fd.get('purpose'),checkIn:fd.get('checkIn'),checkOut:fd.get('checkOut'),nights:fd.get('nights'),guests:fd.get('guests'),ratings,improve:fd.get('improve'),continueWell:fd.get('continueWell'),voiceNote:fd.get('voiceNote'),photo:photoData,photoNote:fd.get('photoNote'),guideNote:fd.get('guideNote'),accommodationResponse:fd.get('accommodationResponse'),contactName:fd.get('contactName'),contact:fd.get('contact'),mayContact:fd.get('mayContact')==='on'} }
-function buildSummary(){const d=getFormData(); $('summaryBox').innerHTML=`<strong>${d.accommodation||'No accommodation'}</strong><br>Date: ${d.surveyDate}<br>Guide: ${d.guide||'-'}<br>Average score: ${avg(d.ratings).toFixed(1)}`}
-function submitSurvey(e){e.preventDefault(); const d=getFormData(); if(!d.accommodation){alert('Accommodation is required.');showStep(0);return} const all=load(); all.push(d); save(all); alert('Survey saved.'); $('surveyForm').reset(); photoData='';$('photoPreview').classList.add('hidden');$('surveyDate').value=today; showStep(0); toggleView('dash'); renderDashboard()}
-function filtered(){let data=load(); const a=$('filterAccommodation').value.toLowerCase(),g=$('filterGuide').value.toLowerCase(),f=$('filterFrom').value,t=$('filterTo').value,m=Number($('filterMaxAvg').value||0); return data.filter(x=>(!a||(x.accommodation||'').toLowerCase().includes(a))&&(!g||(x.guide||'').toLowerCase().includes(g))&&(!f||x.surveyDate>=f)&&(!t||x.surveyDate<=t)&&(!m||avg(x.ratings)<=m)).sort((x,y)=>(y.surveyDate||'').localeCompare(x.surveyDate||''))}
-function renderDashboard(){const data=filtered(); $('statCount').textContent=data.length; $('statAverage').textContent=data.length?avg(data.flatMap(x=>x.ratings)).toFixed(1):'-'; $('statLatest').textContent=data[0]?.surveyDate||'-'; const itemAvgs=ratingItems.map((item,i)=>({item,score:avg(data.map(x=>x.ratings[i]))})); const low=itemAvgs.filter(x=>x.score&&x.score<3.5).sort((a,b)=>a.score-b.score); $('statLowItems').textContent=low.length; $('itemAverages').innerHTML=itemAvgs.map(x=>`<div class="bar-row"><span>${x.item}</span><div class="bar-track"><div class="bar-fill" style="width:${(x.score/5)*100}%"></div></div><strong>${x.score?x.score.toFixed(1):'-'}</strong></div>`).join('')||'<p class="hint">No data.</p>'; $('priorityItems').innerHTML=low.map(x=>`<div class="priority"><strong>${x.item}</strong> — average ${x.score.toFixed(1)}. Check comments and guide notes.</div>`).join('')||'<p class="hint">No priority item detected.</p>'; $('surveyTable').innerHTML=data.map(x=>{const lowest=x.ratings.map((v,i)=>({v,i})).filter(o=>o.v).sort((a,b)=>a.v-b.v)[0]; return `<tr><td>${x.surveyDate||''}</td><td>${x.btisNo||''}</td><td>${x.accommodation||''}</td><td>${x.guide||''}</td><td>${avg(x.ratings).toFixed(1)}</td><td>${lowest?ratingItems[lowest.i]+' ('+lowest.v+')':'-'}</td><td class="admin-only ${adminMode?'':'hidden'}"><button class="danger" onclick="deleteOne('${x.id}')">Delete</button></td></tr>`}).join('')||'<tr><td colspan="7">No survey data.</td></tr>'; document.querySelectorAll('.admin-only').forEach(el=>el.classList.toggle('hidden',!adminMode))}
-function clearFilters(){['filterAccommodation','filterGuide','filterFrom','filterTo','filterMaxAvg'].forEach(id=>$(id).value='');renderDashboard()}
-function csvEscape(v){return '"'+String(v??'').replaceAll('"','""')+'"'}
-function exportCsv(){const rows=filtered(); const header=['surveyDate','btisNo','accommodation','location','guide','nationality','ageGroup','travelType','purpose','average',...ratingItems,'improve','continueWell','guideNote']; const body=rows.map(x=>[x.surveyDate,x.btisNo,x.accommodation,x.location,x.guide,x.nationality,x.ageGroup,x.travelType,x.purpose,avg(x.ratings).toFixed(2),...x.ratings,x.improve,x.continueWell,x.guideNote].map(csvEscape).join(',')); download('btis_v0_6_export.csv',[header.join(','),...body].join('\n'),'text/csv')}
-function exportJson(){download('btis_v0_6_export.json',JSON.stringify(filtered(),null,2),'application/json')}
-function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();URL.revokeObjectURL(a.href)}
-function loadSample(){const sample=[{id:'sample1',createdAt:new Date().toISOString(),btisNo:'BTIS-SAMPLE-001',accommodation:'Rasesa Lodge',location:'Rasesa',guide:'George',surveyDate:today,nationality:'Japan',ageGroup:'60+',travelType:'Group',purpose:'Culture',ratings:[4,2,3,5,3,4,4,5,2,3,4,4],improve:'Bathroom and accessibility need improvement.',continueWell:'Warm staff and local culture.',guideNote:'Priority: toilet and step-free access.'},{id:'sample2',createdAt:new Date().toISOString(),btisNo:'BTIS-SAMPLE-002',accommodation:'Rasesa Lodge',location:'Rasesa',guide:'George',surveyDate:today,ratings:[5,4,4,5,4,4,3,5,3,4,4,5],improve:'Breakfast could include more local food.',continueWell:'Friendly people.',guideNote:'Food experience can connect with local products.'}]; save([...load(),...sample]);renderDashboard()}
-function toggleAdmin(){adminMode=!adminMode;$('adminToggle').textContent=adminMode?'Admin Mode ON':'Admin Mode';renderDashboard()}
-function deleteOne(id){if(!confirm('Delete this survey?'))return; save(load().filter(x=>x.id!==id));renderDashboard()}
-function deleteAll(){if(!confirm('Delete all survey data in this browser?'))return; save([]);renderDashboard()}
-window.deleteOne=deleteOne; init();
+function escapeHtml(v=""){return String(v).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
+function makeTravellerId(){return "BTIS-"+Date.now().toString(36).toUpperCase().slice(-6)}
+function fieldHtml(f){
+  const val=f.readonly?` value="${escapeHtml(makeTravellerId())}"`:"";
+  if(f.type==="html")return f.html;
+  if(f.type==="textarea")return `<div class="field"><label>${f.label}</label><textarea name="${f.name}" placeholder="${f.placeholder||""}"></textarea></div>`;
+  if(f.type==="select")return `<div class="field"><label>${f.label}</label><select name="${f.name}">${f.options.map(o=>`<option value="${escapeHtml(o)}">${escapeHtml(o||"Please select")}</option>`).join("")}</select></div>`;
+  if(f.type==="radio")return `<div class="field"><span class="group-title">${f.label}</span><div class="options">${f.options.map(o=>`<label class="option"><input type="radio" name="${f.name}" value="${escapeHtml(o)}"> ${escapeHtml(o)}</label>`).join("")}</div></div>`;
+  if(f.type==="checkboxGroup")return `<div class="field"><span class="group-title">${f.label}</span><div class="options">${f.options.map(o=>`<label class="option"><input type="checkbox" name="${f.name}" value="${escapeHtml(o)}"> ${escapeHtml(o)}</label>`).join("")}</div></div>`;
+  if(f.type==="checkbox")return `<div class="field"><label class="option"><input type="checkbox" name="${f.name}"> ${f.label}</label></div>`;
+  return `<div class="field"><label>${f.label}</label><input type="${f.type||"text"}" name="${f.name}" placeholder="${f.placeholder||""}" ${f.readonly?"readonly":""} ${f.min?`min="${f.min}"`:""}${val}></div>`;
+}
+function ratingHtml(items,na,screenIndex){
+  return `<div class="rating-grid">${items.map((item,i)=>`<div class="rating-row"><div class="rating-title">${escapeHtml(item)}</div><div class="rating-options">${[1,2,3,4,5].map(n=>`<label><input type="radio" name="s${screenIndex}_r${i}" value="${n}">${n}</label>`).join("")}${na?`<label><input type="radio" name="s${screenIndex}_r${i}" value="NA">N/A</label>`:""}</div><div class="conditional"><textarea name="s${screenIndex}_c${i}" placeholder="Reason or comment (especially for ratings of 1 or 2)"></textarea></div></div>`).join("")}</div>`;
+}
+function renderScreen(){
+  const s=screens[currentScreen];
+  $("screenLabel").textContent=`Screen ${currentScreen+1} of ${screens.length}`;
+  const pct=Math.round(((currentScreen+1)/screens.length)*100);
+  $("progressText").textContent=pct+"%";
+  $("progressBar").style.width=pct+"%";
+  let html=`<div class="screen-card"><h2>${escapeHtml(s.title)}</h2>`;
+  if(s.privacy)html+=`<div class="privacy-banner"><strong>Privacy Mode</strong><p>Please complete this section yourself. Your guide cannot see or change your answers.</p></div>`;
+  if(s.draft)html+=`<div class="draft-banner"><strong>Discussion Draft</strong><p>This screen may change significantly before the first official release.</p></div>`;
+  html+=`<div class="purpose">${escapeHtml(s.purpose)}</div>`;
+  if(s.optional)html+=`<p class="inline-note">This section is optional. You may continue without answering.</p>`;
+  if(s.ratings)html+=ratingHtml(s.ratings,s.na,currentScreen);
+  (s.fields||[]).forEach(f=>html+=fieldHtml(f));
+  (s.extra||[]).forEach(f=>html+=fieldHtml(f));
+  html+="</div>";
+  $("screenContainer").innerHTML=html;
+  restoreCurrentScreen();
+  $("prevBtn").disabled=currentScreen===0;
+  $("nextBtn").classList.toggle("hidden",currentScreen===screens.length-1);
+  $("submitBtn").classList.toggle("hidden",currentScreen!==screens.length-1);
+}
+function collectForm(){
+  const fd=new FormData($("surveyForm"));
+  const data={};
+  for(const [k,v] of fd.entries()){
+    if(data[k]!==undefined){data[k]=Array.isArray(data[k])?[...data[k],v]:[data[k],v]}
+    else data[k]=v;
+  }
+  document.querySelectorAll('input[type="checkbox"]').forEach(cb=>{
+    if(!fd.has(cb.name)&&!data[cb.name]) data[cb.name]=false;
+  });
+  return data;
+}
+function saveDraft(){
+  const existing=JSON.parse(localStorage.getItem(DRAFT_KEY)||"{}");
+  const now=collectForm();
+  localStorage.setItem(DRAFT_KEY,JSON.stringify({...existing,...now,currentScreen}));
+  alert("Draft saved in this browser.");
+}
+function restoreCurrentScreen(){
+  const d=JSON.parse(localStorage.getItem(DRAFT_KEY)||"{}");
+  Object.entries(d).forEach(([k,v])=>{
+    if(k==="currentScreen")return;
+    const els=[...document.querySelectorAll(`[name="${CSS.escape(k)}"]`)];
+    els.forEach(el=>{
+      if(el.type==="radio")el.checked=Array.isArray(v)?v.includes(el.value):el.value===v;
+      else if(el.type==="checkbox")el.checked=Array.isArray(v)?v.includes(el.value):v===true||v==="on";
+      else if(!el.value)el.value=v;
+    });
+  });
+}
+function next(){saveDraftSilent(); if(currentScreen<screens.length-1){currentScreen++;renderScreen();window.scrollTo(0,0)}}
+function prev(){saveDraftSilent(); if(currentScreen>0){currentScreen--;renderScreen();window.scrollTo(0,0)}}
+function saveDraftSilent(){
+  const existing=JSON.parse(localStorage.getItem(DRAFT_KEY)||"{}");
+  localStorage.setItem(DRAFT_KEY,JSON.stringify({...existing,...collectForm(),currentScreen}));
+}
+function overallScore(d){
+  const nums=Object.entries(d).filter(([k,v])=>/^s\d+_r\d+$/.test(k)&&v!=="NA").map(([k,v])=>Number(v)).filter(n=>n>0);
+  return nums.length?nums.reduce((a,b)=>a+b,0)/nums.length:0;
+}
+function submitSurvey(e){
+  e.preventDefault(); saveDraftSilent();
+  const d=JSON.parse(localStorage.getItem(DRAFT_KEY)||"{}");
+  d.id=crypto.randomUUID?crypto.randomUUID():String(Date.now());
+  d.createdAt=new Date().toISOString();
+  d.overallAverage=overallScore(d);
+  const all=load();all.push(d);save(all);
+  localStorage.removeItem(DRAFT_KEY);
+  alert("Survey submitted.");
+  currentScreen=0;
+  $("surveyForm").reset();
+  renderScreen();
+  showDashboard();
+}
+function filtered(){
+  const g=$("filterGuide").value.toLowerCase(),a=$("filterAccommodation").value.toLowerCase(),n=$("filterNationality").value.toLowerCase();
+  return load().filter(x=>(!g||(x.guideName||"").toLowerCase().includes(g))&&(!a||(x.accommodation||"").toLowerCase().includes(a))&&(!n||(x.nationality||"").toLowerCase().includes(n))).sort((x,y)=>(y.createdAt||"").localeCompare(x.createdAt||""));
+}
+function renderDashboard(){
+  const data=filtered();
+  $("statCount").textContent=data.length;
+  $("statAverage").textContent=data.length?(data.reduce((a,b)=>a+Number(b.overallAverage||0),0)/data.length).toFixed(1):"-";
+  $("statLatest").textContent=data[0]?.createdAt?.slice(0,10)||"-";
+  $("surveyTable").innerHTML=data.map(x=>`<tr><td>${escapeHtml((x.createdAt||"").slice(0,10))}</td><td>${escapeHtml(x.travellerName||"-")}</td><td>${escapeHtml(x.nationality||"-")}</td><td>${escapeHtml(x.guideName||"-")}</td><td>${escapeHtml(x.accommodation||"-")}</td><td>${Number(x.overallAverage||0).toFixed(1)}</td><td class="admin-only ${adminMode?"":"hidden"}"><button class="danger" onclick="deleteOne('${x.id}')">Delete</button></td></tr>`).join("")||`<tr><td colspan="7">No survey data.</td></tr>`;
+  document.querySelectorAll(".admin-only").forEach(el=>el.classList.toggle("hidden",!adminMode));
+}
+function showSurvey(){$("surveyView").classList.remove("hidden");$("dashboardView").classList.add("hidden")}
+function showDashboard(){$("surveyView").classList.add("hidden");$("dashboardView").classList.remove("hidden");renderDashboard()}
+function clearFilters(){["filterGuide","filterAccommodation","filterNationality"].forEach(id=>$(id).value="");renderDashboard()}
+function download(name,content,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();URL.revokeObjectURL(a.href)}
+function exportJson(){download("btis_v0_7_export.json",JSON.stringify(filtered(),null,2),"application/json")}
+function csvEscape(v){return '"'+String(v??"").replaceAll('"','""')+'"'}
+function exportCsv(){const rows=filtered();const keys=["createdAt","travellerName","nationality","ageGroup","travelType","guideName","accommodation","location","overallAverage"];const body=rows.map(r=>keys.map(k=>csvEscape(r[k])).join(","));download("btis_v0_7_export.csv",[keys.join(","),...body].join("\n"),"text/csv")}
+function deleteOne(id){if(!confirm("Delete this survey?"))return;save(load().filter(x=>x.id!==id));renderDashboard()}
+function deleteAll(){if(!confirm("Delete all survey data in this browser?"))return;save([]);renderDashboard()}
+window.deleteOne=deleteOne;
+
+$("nextBtn").onclick=next;
+$("prevBtn").onclick=prev;
+$("saveDraftBtn").onclick=saveDraft;
+$("surveyForm").onsubmit=submitSurvey;
+$("newSurveyBtn").onclick=()=>{showSurvey();currentScreen=0;renderScreen()};
+$("dashboardBtn").onclick=showDashboard;
+$("clearFilters").onclick=clearFilters;
+$("exportCsv").onclick=exportCsv;
+$("exportJson").onclick=exportJson;
+$("adminToggle").onclick=()=>{adminMode=!adminMode;$("adminToggle").textContent=adminMode?"Admin Mode ON":"Admin Mode";renderDashboard()};
+$("deleteAll").onclick=deleteAll;
+["filterGuide","filterAccommodation","filterNationality"].forEach(id=>$(id).oninput=renderDashboard);
+
+const draft=JSON.parse(localStorage.getItem(DRAFT_KEY)||"{}");
+currentScreen=Number(draft.currentScreen||0);
+renderScreen();
