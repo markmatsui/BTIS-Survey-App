@@ -54,6 +54,9 @@
           <input id="filterGuide" placeholder="Guide" />
           <input id="filterAccommodation" placeholder="Accommodation" />
           <input id="filterNationality" placeholder="Nationality" />
+          <input id="filterFrom" type="date" aria-label="From date" />
+          <input id="filterTo" type="date" aria-label="To date" />
+          <input id="filterMaxAvg" type="number" min="1" max="5" step="0.1" placeholder="Max average" />
           <button id="clearFilters" class="secondary">Clear</button>
         </div>
 
@@ -61,11 +64,24 @@
           <div><strong id="statCount">0</strong><span>Total Surveys</span></div>
           <div><strong id="statAverage">-</strong><span>Average Score</span></div>
           <div><strong id="statLatest">-</strong><span>Latest Survey</span></div>
+          <div><strong id="statLowItems">0</strong><span>Priority Items</span></div>
+        </div>
+
+        <div class="analytics-grid">
+          <div class="analytics-card">
+            <h3>Item-by-item averages</h3>
+            <div id="itemAverages"></div>
+          </div>
+          <div class="analytics-card">
+            <h3>Priority improvement items</h3>
+            <div id="priorityItems"></div>
+          </div>
         </div>
 
         <div class="export-row">
           <button id="exportCsv" class="secondary">Export CSV</button>
           <button id="exportJson" class="secondary">Export JSON</button>
+          <button id="loadSample" class="secondary">Load Sample Data</button>
           <button id="deleteAll" class="danger hidden admin-only">Delete All Data</button>
         </div>
 

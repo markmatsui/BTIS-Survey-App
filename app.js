@@ -2,6 +2,8 @@ const STORAGE_KEY="btis_surveys_v07";
 const DRAFT_KEY="btis_draft_v07";
 let currentScreen=0;
 let adminMode=false;
+let photoData="";
+let recognition=null;
 
 const screens=[
 {title:"Welcome",purpose:"Welcome to Botswana. This survey helps improve tourism services through honest traveller feedback.",fields:[
@@ -33,6 +35,7 @@ const screens=[
   {type:"text",name:"guideSection",label:"Guide's responsible section",placeholder:"Example: 2 days / Gaborone to Maun"}
 ]},
 {title:"Accommodation Details",purpose:"Create one review for one accommodation stay.",fields:[
+  {type:"qr",name:"qrText",label:"QR / Lodge Code",placeholder:"Example: RASESA, BTIS-RASESA, or lodge JSON"},
   {type:"text",name:"accommodation",label:"Accommodation",placeholder:"Example: Rasesa Lodge"},
   {type:"text",name:"location",label:"Location",placeholder:"Town, village or area"},
   {type:"date",name:"checkIn",label:"Check-in Date"},
@@ -54,7 +57,12 @@ const screens=[
 {title:"Check-out",purpose:"Evaluate the departure process.",ratings:["Speed of check-out","Bill accuracy","Staff helpfulness","Farewell"],na:true},
 {title:"Accommodation Overall Review",purpose:"Give an overall assessment of this accommodation.",ratings:["Overall satisfaction","Would stay again","Would recommend"],na:false,
  extra:[{type:"textarea",name:"accommodationBest",label:"What should this accommodation continue doing well?"},
- {type:"textarea",name:"accommodationImprove",label:"What should be improved?"}]},
+ {type:"textarea",name:"accommodationImprove",label:"What should be improved?"},
+ {type:"voice",name:"voiceNote",label:"Voice Note (Optional)"},
+ {type:"photo",name:"photo",label:"Photo Attachment (Optional)"},
+ {type:"textarea",name:"photoNote",label:"Photo note"},
+ {type:"textarea",name:"guideNote",label:"Guide's Private Note"},
+ {type:"textarea",name:"accommodationResponse",label:"Accommodation Response"}]},
 {title:"Overall Trip Review",purpose:"Please review your overall experience in Botswana.",ratings:["Overall satisfaction","Value for money","Would visit Botswana again","Would recommend Botswana"],na:false,
  extra:[{type:"textarea",name:"tripMemorable",label:"What was the most memorable part of your trip?"},
  {type:"textarea",name:"tripImprove",label:"What is the one thing that should be improved most?"}]},
@@ -116,6 +124,9 @@ function makeTravellerId(){return "BTIS-"+Date.now().toString(36).toUpperCase().
 function fieldHtml(f){
   const val=f.readonly?` value="${escapeHtml(makeTravellerId())}"`:"";
   if(f.type==="html")return f.html;
+  if(f.type==="qr")return `<div class="field"><label>${f.label}</label><div class="inline-control"><input id="qrText" type="text" name="${f.name}" placeholder="${f.placeholder||""}"><button type="button" id="applyQr" class="secondary">Apply Code</button></div><p class="small">Test codes: RASESA or BTIS-RASESA</p></div>`;
+  if(f.type==="voice")return `<div class="field"><label>${f.label}</label><textarea id="voiceNote" name="${f.name}" placeholder="Voice transcription appears here"></textarea><div class="inline-control"><button type="button" id="startVoice" class="secondary">Start Voice Input</button><button type="button" id="stopVoice" class="secondary" disabled>Stop</button><span id="voiceStatus" class="small"></span></div></div>`;
+  if(f.type==="photo")return `<div class="field"><label>${f.label}</label><input id="photoInput" type="file" accept="image/*"><img id="photoPreview" class="photo-preview hidden" alt="Photo preview"></div>`;
   if(f.type==="textarea")return `<div class="field"><label>${f.label}</label><textarea name="${f.name}" placeholder="${f.placeholder||""}"></textarea></div>`;
   if(f.type==="select")return `<div class="field"><label>${f.label}</label><select name="${f.name}">${f.options.map(o=>`<option value="${escapeHtml(o)}">${escapeHtml(o||"Please select")}</option>`).join("")}</select></div>`;
   if(f.type==="radio")return `<div class="field"><span class="group-title">${f.label}</span><div class="options">${f.options.map(o=>`<label class="option"><input type="radio" name="${f.name}" value="${escapeHtml(o)}"> ${escapeHtml(o)}</label>`).join("")}</div></div>`;
@@ -143,10 +154,56 @@ function renderScreen(){
   html+="</div>";
   $("screenContainer").innerHTML=html;
   restoreCurrentScreen();
+  bindDynamicControls();
   $("prevBtn").disabled=currentScreen===0;
   $("nextBtn").classList.toggle("hidden",currentScreen===screens.length-1);
   $("submitBtn").classList.toggle("hidden",currentScreen!==screens.length-1);
 }
+
+function bindDynamicControls(){
+  const qr=$("applyQr"); if(qr) qr.onclick=applyQr;
+  const pi=$("photoInput"); if(pi) pi.onchange=readPhoto;
+  const sv=$("startVoice"); if(sv) sv.onclick=startVoice;
+  const st=$("stopVoice"); if(st) st.onclick=stopVoice;
+  if(photoData && $("photoPreview")){$("photoPreview").src=photoData;$("photoPreview").classList.remove("hidden")}
+}
+function applyQr(){
+  const el=$("qrText"); if(!el)return;
+  const v=el.value.trim(); if(!v)return;
+  try{
+    const o=JSON.parse(v);
+    ["accommodation","location","guideName"].forEach(k=>{
+      const target=document.querySelector(`[name="${k}"]`);
+      const source=k==="guideName"?o.guide:o[k];
+      if(target && source)target.value=source;
+    });
+    return;
+  }catch(e){}
+  if(v.toUpperCase().includes("RASESA")){
+    const a=document.querySelector('[name="accommodation"]');
+    const l=document.querySelector('[name="location"]');
+    if(a)a.value="Rasesa Lodge";
+    if(l)l.value="Rasesa";
+  }
+}
+function readPhoto(e){
+  const file=e.target.files?.[0]; if(!file)return;
+  if(file.size>2_000_000){alert("Please use a photo smaller than 2 MB.");e.target.value="";return}
+  const reader=new FileReader();
+  reader.onload=()=>{photoData=reader.result;const p=$("photoPreview");if(p){p.src=photoData;p.classList.remove("hidden")}};
+  reader.readAsDataURL(file);
+}
+function startVoice(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){if($("voiceStatus"))$("voiceStatus").textContent="Voice input is not supported by this browser.";return}
+  recognition=new SR();recognition.lang="en-US";recognition.continuous=true;
+  recognition.onresult=e=>{let t="";for(let i=e.resultIndex;i<e.results.length;i++)t+=e.results[i][0].transcript+" ";if($("voiceNote"))$("voiceNote").value+=t};
+  recognition.onerror=()=>{if($("voiceStatus"))$("voiceStatus").textContent="Voice input stopped because of an error."};
+  recognition.onend=()=>{if($("startVoice"))$("startVoice").disabled=false;if($("stopVoice"))$("stopVoice").disabled=true};
+  recognition.start();$("startVoice").disabled=true;$("stopVoice").disabled=false;$("voiceStatus").textContent="Listening...";
+}
+function stopVoice(){if(recognition)recognition.stop();if($("startVoice"))$("startVoice").disabled=false;if($("stopVoice"))$("stopVoice").disabled=true;if($("voiceStatus"))$("voiceStatus").textContent="Stopped."}
+
 function collectForm(){
   const fd=new FormData($("surveyForm"));
   const data={};
@@ -157,6 +214,7 @@ function collectForm(){
   document.querySelectorAll('input[type="checkbox"]').forEach(cb=>{
     if(!fd.has(cb.name)&&!data[cb.name]) data[cb.name]=false;
   });
+  data.photo=photoData||data.photo||"";
   return data;
 }
 function saveDraft(){
@@ -195,6 +253,7 @@ function submitSurvey(e){
   d.overallAverage=overallScore(d);
   const all=load();all.push(d);save(all);
   localStorage.removeItem(DRAFT_KEY);
+  photoData="";
   alert("Survey submitted.");
   currentScreen=0;
   $("surveyForm").reset();
@@ -203,23 +262,49 @@ function submitSurvey(e){
 }
 function filtered(){
   const g=$("filterGuide").value.toLowerCase(),a=$("filterAccommodation").value.toLowerCase(),n=$("filterNationality").value.toLowerCase();
-  return load().filter(x=>(!g||(x.guideName||"").toLowerCase().includes(g))&&(!a||(x.accommodation||"").toLowerCase().includes(a))&&(!n||(x.nationality||"").toLowerCase().includes(n))).sort((x,y)=>(y.createdAt||"").localeCompare(x.createdAt||""));
+  const f=$("filterFrom").value,t=$("filterTo").value,m=Number($("filterMaxAvg").value||0);
+  return load().filter(x=>{
+    const date=(x.createdAt||"").slice(0,10);
+    return (!g||(x.guideName||"").toLowerCase().includes(g))
+      &&(!a||(x.accommodation||"").toLowerCase().includes(a))
+      &&(!n||(x.nationality||"").toLowerCase().includes(n))
+      &&(!f||date>=f)&&(!t||date<=t)&&(!m||Number(x.overallAverage||0)<=m);
+  }).sort((x,y)=>(y.createdAt||"").localeCompare(x.createdAt||""));
+}
+function avgValues(values){const nums=values.map(Number).filter(n=>n>0);return nums.length?nums.reduce((a,b)=>a+b,0)/nums.length:0}
+function ratingLabel(key){
+  const m=key.match(/^s(\d+)_r(\d+)$/);if(!m)return key;
+  const s=screens[Number(m[1])];return s?.ratings?.[Number(m[2])]||key;
 }
 function renderDashboard(){
   const data=filtered();
   $("statCount").textContent=data.length;
   $("statAverage").textContent=data.length?(data.reduce((a,b)=>a+Number(b.overallAverage||0),0)/data.length).toFixed(1):"-";
   $("statLatest").textContent=data[0]?.createdAt?.slice(0,10)||"-";
+  const ratingKeys=[...new Set(data.flatMap(x=>Object.keys(x).filter(k=>/^s\\d+_r\\d+$/.test(k))))].sort();
+  const itemAvgs=ratingKeys.map(k=>({key:k,score:avgValues(data.map(x=>x[k]))}));
+  const low=itemAvgs.filter(x=>x.score>0&&x.score<3.5).sort((a,b)=>a.score-b.score);
+  $("statLowItems").textContent=low.length;
+  $("itemAverages").innerHTML=itemAvgs.length?itemAvgs.map(x=>`<div class="bar-row"><span>${ratingLabel(x.key)}</span><div class="bar-track"><div class="bar-fill" style="width:${(x.score/5)*100}%"></div></div><strong>${x.score.toFixed(1)}</strong></div>`).join(""):"<p class='small'>No rating data.</p>";
+  $("priorityItems").innerHTML=low.length?low.map(x=>`<div class="priority"><strong>${ratingLabel(x.key)}</strong> — average ${x.score.toFixed(1)}</div>`).join(""):"<p class='small'>No priority item detected.</p>";
   $("surveyTable").innerHTML=data.map(x=>`<tr><td>${escapeHtml((x.createdAt||"").slice(0,10))}</td><td>${escapeHtml(x.travellerName||"-")}</td><td>${escapeHtml(x.nationality||"-")}</td><td>${escapeHtml(x.guideName||"-")}</td><td>${escapeHtml(x.accommodation||"-")}</td><td>${Number(x.overallAverage||0).toFixed(1)}</td><td class="admin-only ${adminMode?"":"hidden"}"><button class="danger" onclick="deleteOne('${x.id}')">Delete</button></td></tr>`).join("")||`<tr><td colspan="7">No survey data.</td></tr>`;
   document.querySelectorAll(".admin-only").forEach(el=>el.classList.toggle("hidden",!adminMode));
 }
 function showSurvey(){$("surveyView").classList.remove("hidden");$("dashboardView").classList.add("hidden")}
 function showDashboard(){$("surveyView").classList.add("hidden");$("dashboardView").classList.remove("hidden");renderDashboard()}
-function clearFilters(){["filterGuide","filterAccommodation","filterNationality"].forEach(id=>$(id).value="");renderDashboard()}
+function clearFilters(){["filterGuide","filterAccommodation","filterNationality","filterFrom","filterTo","filterMaxAvg"].forEach(id=>$(id).value="");renderDashboard()}
 function download(name,content,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();URL.revokeObjectURL(a.href)}
-function exportJson(){download("btis_v0_7_export.json",JSON.stringify(filtered(),null,2),"application/json")}
+function exportJson(){download("btis_v0_7_1_export.json",JSON.stringify(filtered(),null,2),"application/json")}
 function csvEscape(v){return '"'+String(v??"").replaceAll('"','""')+'"'}
-function exportCsv(){const rows=filtered();const keys=["createdAt","travellerName","nationality","ageGroup","travelType","guideName","accommodation","location","overallAverage"];const body=rows.map(r=>keys.map(k=>csvEscape(r[k])).join(","));download("btis_v0_7_export.csv",[keys.join(","),...body].join("\n"),"text/csv")}
+function exportCsv(){const rows=filtered();const keys=["createdAt","travellerName","nationality","ageGroup","travelType","guideName","accommodation","location","overallAverage","accommodationBest","accommodationImprove","guideNote","accommodationResponse"];const body=rows.map(r=>keys.map(k=>csvEscape(r[k])).join(","));download("btis_v0_7_1_export.csv",[keys.join(","),...body].join("\n"),"text/csv")}
+function loadSample(){
+  const now=new Date().toISOString();
+  const sample=[
+    {id:"sample1",createdAt:now,travellerName:"Hiro Dias",nationality:"Japan",ageGroup:"60–69",travelType:"Group",guideName:"George",accommodation:"Rasesa Lodge",location:"Rasesa",overallAverage:3.4,s7_r0:"4",s9_r0:"4",s10_r0:"2",s11_r0:"3",s12_r0:"3",s13_r0:"2",accommodationImprove:"Bathroom and accessibility need improvement.",guideNote:"Priority: toilet and step-free access."},
+    {id:"sample2",createdAt:now,travellerName:"Sample Traveller",nationality:"South Africa",ageGroup:"40–49",travelType:"Family",guideName:"George",accommodation:"Rasesa Lodge",location:"Rasesa",overallAverage:4.2,s7_r0:"5",s9_r0:"4",s10_r0:"4",s11_r0:"4",s12_r0:"4",s13_r0:"3",accommodationImprove:"Breakfast could include more local food.",guideNote:"Food experience can connect with local products."}
+  ];
+  save([...load(),...sample]);renderDashboard();
+}
 function deleteOne(id){if(!confirm("Delete this survey?"))return;save(load().filter(x=>x.id!==id));renderDashboard()}
 function deleteAll(){if(!confirm("Delete all survey data in this browser?"))return;save([]);renderDashboard()}
 window.deleteOne=deleteOne;
@@ -233,9 +318,10 @@ $("dashboardBtn").onclick=showDashboard;
 $("clearFilters").onclick=clearFilters;
 $("exportCsv").onclick=exportCsv;
 $("exportJson").onclick=exportJson;
+$("loadSample").onclick=loadSample;
 $("adminToggle").onclick=()=>{adminMode=!adminMode;$("adminToggle").textContent=adminMode?"Admin Mode ON":"Admin Mode";renderDashboard()};
 $("deleteAll").onclick=deleteAll;
-["filterGuide","filterAccommodation","filterNationality"].forEach(id=>$(id).oninput=renderDashboard);
+["filterGuide","filterAccommodation","filterNationality","filterFrom","filterTo","filterMaxAvg"].forEach(id=>$(id).oninput=renderDashboard);
 
 const draft=JSON.parse(localStorage.getItem(DRAFT_KEY)||"{}");
 currentScreen=Number(draft.currentScreen||0);

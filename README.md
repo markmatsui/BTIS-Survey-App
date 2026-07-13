@@ -1,45 +1,55 @@
-# BTIS Survey App — Version 0.7 Draft
+# BTIS Survey App — Version 0.7.1 Integrated Draft
 
-This browser-based prototype updates the Botswana Tourism Improvement System (BTIS).
+This version integrates the current 30-screen survey with useful functions restored from Version 0.6.
 
-## Status
+## Survey status
 
 - Screens 1–27: nearly complete working draft
-- Screens 28–30: clearly marked **Discussion Draft**
-- Screens 28–30 may change significantly before the first official release
+- Screens 28–30: **Discussion Draft**
+- Screens 28–30 may change significantly
 
-## Main additions
+## Current survey functions
 
 - 30-screen guided survey
 - Progress bar
-- Save Draft / resume using browser storage
-- Smart optional sections and "Not Applicable" options
+- Save Draft / resume
+- Not Applicable ratings
+- Name / Nickname field
 - Narrower age groups
-- One flexible Name / Nickname field
-- Guide evaluation Privacy Mode
-- Time-management standard:
-  - Arrive at least 10 minutes early
-  - Late arrival is unacceptable
+- Guide Privacy Mode
+- Guide time-management standard
 - Traditional Botswana food questions
 - Overall trip review
 - Optional tourism market research
-- Dashboard
+- Local browser storage
+
+## Restored from Version 0.6
+
+- QR / lodge code input
+- Voice input support where available
+- Photo attachment and preview
+- Guide's private note
+- Accommodation response field
+- Date and score filters
+- Item-by-item average scores
+- Priority improvement item detection
 - CSV and JSON export
 - Admin delete controls
+- Sample data loader
 
 ## Important limitation
 
-This version does not use a real server. Survey and draft data are stored only in the current browser.
+This prototype does not use a real server. Data is stored only in the browser currently being used. Photos stored in browser data should be kept small.
 
-## Files to upload to GitHub
+## Files to upload
 
-Replace the four files in the repository root:
+Replace the four repository files:
 
 1. `index.html`
-2. `style.css`
-3. `app.js`
+2. `app.js`
+3. `style.css`
 4. `README.md`
 
 ## Suggested commit message
 
-`Update BTIS to v0.7 with Screens 1-27 and market research draft`
+`Integrate BTIS v0.6 tools into v0.7 survey draft`
